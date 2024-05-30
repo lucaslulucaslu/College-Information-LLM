@@ -66,7 +66,9 @@ with st.sidebar:
     "[美国大学申请服务](https://www.forwardpathway.com/university-application)"
     "[研究生、博士申请服务](https://www.forwardpathway.com/graduate-apply)"
     "[留学紧急情况应对服务](https://www.forwardpathway.com/emergency-transfer)"
-    
+    st.divider()
+    st.subheader("微信扫码联系在线客服")
+    st.image('./logos/wecom_barcode.png')
 
 st.title("💬 美国续航教育AI小助手")
 
@@ -79,7 +81,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"],avatar=avatars[msg['role']]):
         st.markdown(msg["content"])
 
-if prompt := st.chat_input('请输入您的问题，问题可以尽量详细。'):
+if prompt := st.chat_input('请输入您的问题，问题请尽量详细。'):
     if not os.environ['OPENAI_API_KEY']:
         st.info("Please add your OpenAI API key in ENV to continue.")
         st.stop()
