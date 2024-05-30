@@ -60,13 +60,14 @@ def stream_response():
             yield r['answer']
                 
 with st.sidebar:
-    st.subheader('更多资源可点击链接查看',divider=True)
+    st.subheader('更多资源可点击链接查看',divider='rainbow')
     "[美国大学排名数据库](https://www.forwardpathway.com/ranking)"
+    "[留学宝典](https://www.forwardpathway.com/usabaike)"
     "[美国大学申请服务](https://www.forwardpathway.com/university-application)"
-    "[美国大学申请服务](https://www.forwardpathway.com/university-application)"
-    "[美国大学申请服务](https://www.forwardpathway.com/university-application)"
-    "[美国大学申请服务](https://www.forwardpathway.com/university-application)"
-    if st.button('开始新的问题',type='primary'):
+    "[研究生、博士申请服务](https://www.forwardpathway.com/graduate-apply)"
+    "[留学紧急情况应对服务](https://www.forwardpathway.com/emergency-transfer)"
+    
+    if st.button('重新开始新问题',type='primary'):
         st.rerun()
 
 st.title("💬 美国续航教育AI小助手")
