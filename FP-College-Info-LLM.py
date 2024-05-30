@@ -62,6 +62,7 @@ def stream_response():
 hide_streamlit_style = """
             <style>
             a[class^=viewerBadge] {visibility: hidden !important; display:none !important;}
+            a {display:none}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
