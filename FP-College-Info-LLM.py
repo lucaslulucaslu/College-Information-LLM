@@ -12,20 +12,20 @@ from langchain_core.prompts import MessagesPlaceholder
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
 
-SEARCH_DOCS_NUM=2
+SEARCH_DOCS_NUM=4
 
 llm = ChatOpenAI()
 kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
 #kb.initiate_documents()
 vector=kb.return_retriever_from_persistant_vector_db()
 
-prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+prompt = ChatPromptTemplate.from_template("""尽量仅使用下面提供的内容生成问题的答案:
 
 <context>
 {context}
 </context>
 
-Question: {input}""")
+问题: {input}""")
 
 document_chain = create_stuff_documents_chain(llm, prompt)
 retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
@@ -33,13 +33,13 @@ retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
 prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
-    ("user", "Given the above conversation, generate a search query to look up to get information relevant to the conversation")
+    ("user", "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来超找与问题相关的查询短语")
 ])
 
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "Answer the user's questions only based on the below context:\n\n{context}\n\n 如果回答中有提到帮助或者服务的项目，尽可能在回答最后推荐使用美国续航教育的相关服务"),
+    ("system", "尽量仅使用下面提供的内容生成问题的答案:\n\n{context}\n\n 如果回答中有提到帮助或者服务的项目，尽可能在回答最后推荐使用美国续航教育的相关服务"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
