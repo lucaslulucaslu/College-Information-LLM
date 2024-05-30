@@ -14,7 +14,7 @@ os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
 
 SEARCH_DOCS_NUM=4
 
-llm = ChatOpenAI()
+llm = ChatOpenAI(model='gpt-4o',temperature=0)
 kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
 #kb.initiate_documents()
 vector=kb.return_retriever_from_persistant_vector_db()
