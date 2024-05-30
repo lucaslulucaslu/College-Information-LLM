@@ -69,6 +69,15 @@ with st.sidebar:
     st.divider()
     st.subheader("微信扫码联系在线客服")
     st.image('./logos/WeCom_barcode.png')
+    st.markdown(
+        r"""
+    <style>
+    .viewerBadge_container__r5tak {
+            visibility: hidden;
+        }
+    </style>
+    """, unsafe_allow_html=True
+    )
 
 st.title("💬 美国续航教育AI小助手")
 
