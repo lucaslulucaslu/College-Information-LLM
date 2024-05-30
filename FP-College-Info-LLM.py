@@ -33,13 +33,13 @@ retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
 prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
-    ("user", "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来超找与问题相关的查询短语")
+    ("user", "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询短语")
 ])
 
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "尽量仅使用下面提供的内容生成问题的答案:\n\n{context}\n\n 如果回答中有提到帮助或者服务的项目，尽可能在回答最后推荐使用美国续航教育的相关服务"),
+    ("system", "尽量仅使用下面提供的内容生成问题的答案:\n\n{context}\n\n 如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
