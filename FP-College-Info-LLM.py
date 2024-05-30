@@ -59,14 +59,6 @@ def stream_response():
         if 'answer' in r:
             yield r['answer']
 
-hide_streamlit_style = """
-            <style>
-            a[class^=viewerBadge] {visibility: hidden !important; display:none !important;}
-            a {display:none}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
-
 with st.sidebar:
     st.subheader('更多资源可点击链接查看',divider='rainbow')
     "[美国大学排名数据库](https://www.forwardpathway.com/ranking)"
