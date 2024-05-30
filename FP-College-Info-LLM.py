@@ -41,7 +41,13 @@ kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
 vector=kb.return_retriever_from_persistant_vector_db()
 
 prompt = ChatPromptTemplate.from_template(
-    """尽量仅使用下面提供的内容生成问题的答案:<context>{context}</context>问题: {input}"""
+    """尽量仅使用下面提供的内容生成问题的答案:
+    
+    <context>
+    {context}
+    </context>
+    
+    问题: {input}"""
 )
 
 document_chain = create_stuff_documents_chain(llm, prompt)
