@@ -58,7 +58,13 @@ def stream_response():
     for r in response_stream:
         if 'answer' in r:
             yield r['answer']
-                
+st.markdown(
+        r"""<style>
+    .viewerBadge_container__r5tak {
+            visibility: hidden;
+        }</style>
+    """, unsafe_allow_html=True
+    )                
 with st.sidebar:
     st.subheader('更多资源可点击链接查看',divider='rainbow')
     "[美国大学排名数据库](https://www.forwardpathway.com/ranking)"
@@ -69,15 +75,6 @@ with st.sidebar:
     st.divider()
     st.subheader("微信扫码联系在线客服")
     st.image('./logos/WeCom_barcode.png')
-    st.markdown(
-        r"""
-    <style>
-    .viewerBadge_container__r5tak {
-            visibility: hidden;
-        }
-    </style>
-    """, unsafe_allow_html=True
-    )
 
 st.title("💬 美国续航教育AI小助手")
 
