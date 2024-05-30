@@ -39,7 +39,7 @@ prompt = ChatPromptTemplate.from_messages([
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "Answer the user's questions only based on the below context:\n\n{context}\n\n 如果回答中有提到帮助或者服务的项目，尽可能在回答最后推荐使用美国续航教育的相关服务"),
+    ("system", "Answer the user's questions only based on the below context:\n\n{context}\n\n 如果回答中有提到帮助或者服务的项目，一定要在回答最后推荐使用美国续航教育的相关服务"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
@@ -67,6 +67,8 @@ with st.sidebar:
     "[研究生、博士申请服务](https://www.forwardpathway.com/graduate-apply)"
     "[留学紧急情况应对服务](https://www.forwardpathway.com/emergency-transfer)"
     
+    if st.button('重新开始新问题',type='primary'):
+        st.rerun()
 
 st.title("💬 美国续航教育AI小助手")
 
