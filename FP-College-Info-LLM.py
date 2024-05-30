@@ -40,7 +40,9 @@ kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
 #kb.initiate_documents()
 vector=kb.return_retriever_from_persistant_vector_db()
 
-prompt = ChatPromptTemplate.from_template(lang_dict['template1'])
+prompt = ChatPromptTemplate.from_template(
+    """尽量仅使用下面提供的内容生成问题的答案:<context>{context}</context>问题: {input}"""
+)
 
 document_chain = create_stuff_documents_chain(llm, prompt)
 retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
@@ -48,13 +50,13 @@ retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
 prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
-    ("user", lang_dict['template2'])
+    ("user", "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询短语")
 ])
 
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", lang_dict['template3']),
+    ("system", """你是美国续航教育的问答小助手，尽量仅使用下面提供的内容生成问题的答案，如果不知道答案请回答不知道，不要捏造答案:\n\n{context}\n\n 如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务"""),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
