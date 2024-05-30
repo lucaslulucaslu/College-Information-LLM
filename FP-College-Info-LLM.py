@@ -39,7 +39,7 @@ prompt = ChatPromptTemplate.from_messages([
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "尽量仅使用下面提供的内容生成问题的答案:\n\n{context}\n\n 如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务"),
+    ("system", "你是美国续航教育的问答小助手，尽量仅使用下面提供的内容生成问题的答案，如果不知道答案请回答不知道，不要捏造答案，回答的内容请尽量详细:\n\n{context}\n\n 如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务"),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
