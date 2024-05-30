@@ -68,7 +68,7 @@ with st.sidebar:
     "[留学紧急情况应对服务](https://www.forwardpathway.com/emergency-transfer)"
     st.divider()
     st.subheader("微信扫码联系在线客服")
-    st.image('./logos/wecom_barcode.png')
+    st.image('./logos/WeCom_barcode.png')
 
 st.title("💬 美国续航教育AI小助手")
 
