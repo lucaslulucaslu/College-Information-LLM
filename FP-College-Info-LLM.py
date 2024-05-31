@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains import create_retrieval_chain
 from langchain.chains import create_history_aware_retriever
 from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 import languages
 
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
@@ -31,7 +32,7 @@ if language=='EN':
 else:
     lang_dict=languages.cn_dict
 
-
+###################
     
 SEARCH_DOCS_NUM=2
 
@@ -40,21 +41,18 @@ kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
 #kb.initiate_documents()
 vector=kb.return_retriever_from_persistant_vector_db()
 
-prompt = ChatPromptTemplate.from_template(lang_dict['template1'])
-
-document_chain = create_stuff_documents_chain(llm, prompt)
 retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
 
 prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
-    ("user", lang_dict['template2'])
+    ("user", lang_dict['prompt_retriever'])
 ])
 
 retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", lang_dict['template3']),
+    ("system", lang_dict['prompt_document']),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
 ])
@@ -63,7 +61,7 @@ document_chain = create_stuff_documents_chain(llm, prompt)
 
 retrieval_chain = create_retrieval_chain(retriever_chain, document_chain)
 
-chat_history=''
+chat_history=[]
 
 def stream_response():
     response_stream=retrieval_chain.stream({
@@ -73,6 +71,15 @@ def stream_response():
     for r in response_stream:
         if 'answer' in r:
             yield r['answer']
+
+def chat_history_generater(msgs):
+    chat_history=[]
+    for msg in msgs:
+        if msg['role']=='user':
+            chat_history.append(HumanMessage(content=msg['content']))
+        if msg['role']=='assistant':
+            chat_history.append(AIMessage(content=msg['content']))
+    return chat_history
 
 with st.sidebar:
     st.subheader(lang_dict['more'],divider='rainbow')
@@ -99,6 +106,9 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 if prompt := st.chat_input(lang_dict['input_box']):
+    
+    chat_history=chat_history_generater(st.session_state.messages)
+    
     if not os.environ['OPENAI_API_KEY']:
         st.info("Please add your OpenAI API key in ENV to continue.")
         st.stop()
@@ -107,8 +117,6 @@ if prompt := st.chat_input(lang_dict['input_box']):
     
     with st.chat_message("user",avatar=avatars['user']):
         st.markdown(prompt)
-        
-    chat_history=st.session_state.messages
     
     with st.chat_message("assistant",avatar=avatars['assistant']):
         msg=st.write_stream(stream_response)
