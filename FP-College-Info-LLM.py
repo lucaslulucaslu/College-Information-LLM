@@ -10,6 +10,8 @@ from langchain.chains import create_history_aware_retriever
 from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 import languages
+import numpy as np
+import pandas as pd
 
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
@@ -102,8 +104,9 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": lang_dict['init_content']}]
 
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"],avatar=avatars[msg['role']]):
-        st.markdown(msg["content"])
+    if msg['role']=='user' or msg['role']=='assistant':
+        with st.chat_message(msg["role"],avatar=avatars[msg['role']]):
+            st.markdown(msg["content"])
 
 if prompt := st.chat_input(lang_dict['input_box']):
     
@@ -120,6 +123,7 @@ if prompt := st.chat_input(lang_dict['input_box']):
     
     with st.chat_message("assistant",avatar=avatars['assistant']):
         msg=st.write_stream(stream_response)
-        
+    
     st.session_state.messages.append({"role": "assistant", "content": msg})
+
     

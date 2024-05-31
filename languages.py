@@ -1,6 +1,6 @@
 cn_dict={
     'prompt_retriever':'基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询句子，句子尽量包含所有细节',
-    'prompt_document':"你是美国续航教育的问答小助手，尽量仅使用下面提供的内容生成问题的答案，如果不知道答案请回答不知道，不要捏造答案，如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务，提供的内容如下：{context}",
+    'prompt_document':"你是美国续航教育的问答小助手，尽量仅使用下面提供的内容生成问题的答案，如果不知道答案请回答不知道，不要捏造答案，如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务，提供的内容如下：\n\n{context}",
     'title':'💬 美国续航教育AI小助手',
     'init_content':'这里是美国续航教育AI小助手，请问有什么可以帮您的吗？',
     'input_box':'请输入您的问题，问题请尽量详细。',
@@ -26,10 +26,3 @@ en_dict={
     'service_emergency':"[Emergency Services](https://www.forwardpathway.com/emergency-transfer)",
     'service_barcode':'WeChat barcode for agents'
 }
-"""尽量仅使用下面提供的内容生成问题的答案:
-
-<context>
-{context}
-</context>
-
-问题: {input}"""
