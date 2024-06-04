@@ -52,7 +52,9 @@ cn_dict={
     'data_tuition_fees_out':'外州学生学费',
     'data_graduation_rate':'毕业率',
     'data_retention_rate':'学生保有率',
-    'data_crime_rate':'每千人学生记过、犯罪率'
+    'data_crime_rate':'每千人学生记过、犯罪率',
+    'error_too_many_requests':'为了AI服务器更好的运行，两次提问输入间隔请不要少于3秒时间！',
+    'languages':'语言选择'
 }
 en_dict={
     'prompt_retriever':'Given the above conversation, generate a search query to look up to get information relevant to the conversation',
@@ -108,5 +110,6 @@ en_dict={
     'data_tuition_fees_out':'Out-of-state Tuition',
     'data_graduation_rate':'Graduation Rate',
     'data_retention_rate':'Retention Rate',
-    'data_crime_rate':'Crime rate per 1000 students'
+    'data_crime_rate':'Crime rate per 1000 students',
+    'error_too_many_requests':'Please wait for 3 seconds to input another question!'
 }
