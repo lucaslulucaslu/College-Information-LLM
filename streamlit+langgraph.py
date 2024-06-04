@@ -4,7 +4,6 @@ import languages
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter,MaxNLocator
-import seaborn as sns
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -185,7 +184,7 @@ def college_data_plot(state):
     if college_info.data_type=='排名':
         college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
         college_df['year']=college_df['year'].astype(str)
-        college_df=college_df[['year','rank']].rename(columns={'year':'年','rank':'排名'})
+        college_df=college_df[['year','rank']].rename(columns={'year':'年','rank':'USNews排名'})
         college_df.set_index('年',inplace=True)
     elif college_info.data_type=='录取率':
         college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
