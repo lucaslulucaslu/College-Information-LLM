@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-import languages
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter,MaxNLocator
@@ -17,9 +17,9 @@ from typing_extensions import TypedDict
 from typing import List
 from typing import Literal
 
-from colleges import CollegesData
-from knowledgebase import TXTKnowledgeBase
-
+from utilities.colleges import CollegesData
+from utilities.knowledgebase import TXTKnowledgeBase
+from utilities import languages
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
 
