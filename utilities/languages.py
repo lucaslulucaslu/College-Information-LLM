@@ -5,7 +5,7 @@ cn_dict={
     'prompt_comments_human':'大学名称：{college_cname}，数据类型：{data_type}，具体数据如下：\n\n{data}',
     'title':'💬 美国续航教育AI小助手',
     'init_content':'这里是美国续航教育AI小助手，请问有什么可以帮您的吗？',
-    'input_box':'请输入您的问题，比如：哈佛大学的录取率是多少？',
+    'input_box':'试试：哈佛大学的录取率是多少？',
     'more':'更多资源可点击链接查看',
     'rankings':'[美国大学排名数据库](https://www.forwardpathway.com/ranking)',
     'lxbd':"[留学宝典](https://www.forwardpathway.com/usabaike)",
@@ -54,7 +54,8 @@ cn_dict={
     'data_retention_rate':'学生保有率',
     'data_crime_rate':'每千人学生记过、犯罪率',
     'error_too_many_requests':'为了AI服务器更好的运行，两次提问输入间隔请不要少于3秒时间！',
-    'languages':'语言选择'
+    'languages':'语言选择',
+    'disclaim':'*该APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用'
 }
 en_dict={
     'prompt_retriever':'Given the above conversation, generate a search query to look up to get information relevant to the conversation',
@@ -63,7 +64,7 @@ en_dict={
     'prompt_comments_human':'college name: {college_ename}，data type: {data_type}，detailed data:\n\n{data}',
     'title':'💬 Forward Pathway AI ChatBot',
     'init_content':'How can I help you?',
-    'input_box':'Please input your question',
+    'input_box':'Try how many students in Harvard?',
     'more':'More resources',
     'rankings':'[College Rankings](https://www.forwardpathway.com/ranking)',
     'lxbd':"[International Students Handbook](https://www.forwardpathway.com/usabaike)",
@@ -111,5 +112,6 @@ en_dict={
     'data_graduation_rate':'Graduation Rate',
     'data_retention_rate':'Retention Rate',
     'data_crime_rate':'Crime rate per 1000 students',
-    'error_too_many_requests':'Please wait for 3 seconds to input another question!'
+    'error_too_many_requests':'Please wait for 3 seconds to input another question!',
+    'disclaim':'*The data and information of this APP are from the official website of Forward Pathway LLC, and the output content has been organized by ChatGPT. Please note that the answers during the testing phase of the APP may not be accurate, so please verify before using.'
 }

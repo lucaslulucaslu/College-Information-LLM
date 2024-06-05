@@ -52,3 +52,10 @@ class TXTKnowledgeBase:
         vector=self.convert_documents_to_embeddings(chunked_docs=chunked_documents)
         print("=> vector initialised")
         return vector
+    def initiate_documents_nochunk(self):
+        loaded_txts=self.load_txts()
+        #chunked_documents=self.split_documents(loaded_docs=loaded_txts)
+        #print("=> TXT files loading and chunking done.")
+        vector=self.convert_documents_to_embeddings(chunked_docs=loaded_txts)
+        print("=> vector initialised")
+        return vector

@@ -1,4 +1,9 @@
 import streamlit as st
+st.set_page_config(
+    page_title="Forward Pathway AI Chatbot",
+    page_icon="./logos/fp_logo.png",
+    menu_items={'About': "APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用"})
+
 import os
 import datetime
 import pandas as pd
@@ -366,6 +371,7 @@ def plot_college_data(df,data_type):
             ax.plot(df['year'],df['每千人学生记过、犯罪率'],'o-',label=lang_dict['data_crime_rate'])
             ax.set_ylabel(lang_dict['data_crime_rate'])
         st.pyplot(fig)
+        
 def college_data_comments(state):
     df=state['data']
     data_type=state['college_info'].data_type
@@ -428,7 +434,8 @@ with st.sidebar:
     st.divider()
     st.subheader(lang_dict['service_barcode'])
     st.image('./logos/WeCom_barcode.png')
-    
+    st.divider()
+    st.markdown(lang_dict['disclaim'])
 st.title(lang_dict['title'])
 
 avatars={'assistant':'./logos/fp_logo.png','user':'❓'}
