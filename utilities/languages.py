@@ -1,7 +1,7 @@
 cn_dict={
     'prompt_retriever':'基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询句子，句子尽量包含所有细节',
-    'prompt_document':"""你是美国续航教育的问答小助手，基于之前的聊天记录，并仅使用下面提供的美国续航教育资料库内容生成问题的答案，如果不知道答案请回答不知道，让用户重新提问，不要捏造答案，如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务并给出可以点击的美国续航教育官网url：https://www.forwardpathway.com，美国续航教育资料库内容如下：\n\n{context}\n\n聊天记录如下：{chat_history}""",
-    'prompt_comments_system':'你是一位了解美国高等院校各类数据的专家，你需要对下面这所大学的该类数据做一个简短的讨论，可以是趋势、变化、异常或者其他任何与该数据相关的情况,如果是录取率，保有率，毕业率等小于1的数值，请自动转换成百分比数值，数据来源url：{college_url}，请给出一个可以点击的正确链接地址',
+    'prompt_document':"""你是美国续航教育的问答小助手，基于之前的聊天记录，并尽量使用下面提供的美国续航教育资料库内容生成问题的答案，不要捏造答案，如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务并给出可以点击的美国续航教育官网url：https://www.forwardpathway.com，美国续航教育资料库内容如下：\n\n{context}\n\n聊天记录如下：{chat_history}""",
+    'prompt_comments_system':'你是一位了解美国高等院校各类数据的专家，你需要对下面这所大学的该类数据做一个简短的讨论，可以是趋势、变化、异常或者其他任何与该数据相关的情况,如果是录取率，保有率，毕业率等小于1的数值，请自动转换成百分比数值，数据来源url：{college_url}，请给出一个可以点击的正确链接地址。如果数据以及讨论没有很好的回答用户的问题，请进行必要的补充，用户原始问题如下：{question}',
     'prompt_comments_human':'大学名称：{college_cname}，数据类型：{data_type}，具体数据如下：\n\n{data}',
     'title':'💬 美国续航教育AI小助手',
     'init_content':'这里是美国续航教育AI小助手，请问有什么可以帮您的吗？',
@@ -13,7 +13,8 @@ cn_dict={
     'service_grad':"[研究生、博士申请服务](https://www.forwardpathway.com/graduate-apply)",
     'service_emergency':"[留学紧急情况应对服务](https://www.forwardpathway.com/emergency-transfer)",
     'service_barcode':'微信扫码联系在线客服',
-    'data_ranking':'排名',
+    'data_ranking':'USNews排名',
+    'data_world_ranking':'世界大学排名',
     'data_admission_rate':'录取率',
     'data_men_adm':'男生录取率',
     'data_women_adm':'女生录取率',
@@ -59,7 +60,7 @@ cn_dict={
 }
 en_dict={
     'prompt_retriever':'Given the above conversation, generate a search query to look up to get information relevant to the conversation',
-    'prompt_document':"""Consider chat history and answer the user's questions only based on the below context:\n\n{context}\n\n chat history: {chat_history}\n\nIf there is any consulting service or related agents are mentioned in the answer, please recommend Forward Pathway's services and give a clickable company website url:https://www.forwardpathway.com""",
+    'prompt_document':"""Consider chat history and answer the user's questions based on the below context:\n\n{context}\n\n chat history: {chat_history}\n\nIf there is any consulting service or related agents are mentioned in the answer, please recommend Forward Pathway's services and give a clickable company website url:https://www.forwardpathway.com""",
     'prompt_comments_system':"""You are a expert for U.S. colleges' data, based on the data below, you need to comment on the data, comments can be trends, anormaly, change or anything related to the data provided, if data is related to admission rate, retention rate or graduation rate and numbers are below 1, you need to convert the number to percentage number automatically, data source url: {college_url}，please cite a clickable link at the end of comments""",
     'prompt_comments_human':'college name: {college_ename}，data type: {data_type}，detailed data:\n\n{data}',
     'title':'💬 Forward Pathway AI ChatBot',
@@ -72,7 +73,8 @@ en_dict={
     'service_grad':"[Grad/PHD Application Services](https://www.forwardpathway.com/graduate-apply)",
     'service_emergency':"[Emergency Services](https://www.forwardpathway.com/emergency-transfer)",
     'service_barcode':'WeChat barcode for agents',
-    'data_ranking':'Rank',
+    'data_ranking':'USNews Rank',
+    'data_world_ranking':'World Us Rank',
     'data_admission_rate':'Admission Rate',
     'data_men_adm':'Men Admission Rate',
     'data_women_adm':'Women Admisson Rate',

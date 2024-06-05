@@ -28,12 +28,13 @@ from utilities.knowledgebase import TXTKnowledgeBase
 from utilities import languages
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
+#os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 
-SEARCH_DOCS_NUM=2
+SEARCH_DOCS_NUM=4
 SEARCH_COLLEGES_NUM=2
 
 ################# Choose LLM Model can also be gpt-4o with better performance but more expensive #############################
-llm = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0)
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
 ##############choose language######################
 lang_index=('lang' in st.query_params and st.query_params['lang'].upper()=='EN')
@@ -94,8 +95,11 @@ class GraphState(TypedDict):
 
 def retrieve(state):
     #print("---RETRIEVE---")
-    kb=TXTKnowledgeBase(txt_source_folder_path='lxbd')
-    vector=kb.return_retriever_from_persistant_vector_db()
+    vector=TXTKnowledgeBase(txt_source_folder_path='lxbd').return_retriever_from_persistant_vector_db()
+    vector_lxsq=TXTKnowledgeBase(txt_source_folder_path='lxsq').return_retriever_from_persistant_vector_db()
+    vector_emergency=TXTKnowledgeBase(txt_source_folder_path='emergency').return_retriever_from_persistant_vector_db()
+    vector.merge_from(vector_lxsq)
+    vector.merge_from(vector_emergency)
     documents_retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
     question=state["question"]
     documents=documents_retriever.invoke(question)
@@ -184,6 +188,7 @@ def college_data_plot(state):
     college_info=state['college_info']
     dataURLs={
         "rank_adm":"https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20231213.php?name=",
+        "world_rank":"https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4.php?name=",
         "score":"https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
         "students":"https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
         "students_number":"https://www.forwardpathway.com/d3v7/dataphp/school_database/international_students_20240118.php?name=",
@@ -192,9 +197,13 @@ def college_data_plot(state):
     }
     if college_info.data_type=='排名':
         college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
-        college_df['year']=college_df['year'].astype(str)
+        data=pd.read_json(dataURLs["world_rank"]+str(college_info.postid))
+        #college_df['year']=college_df['year'].astype(str)
         college_df=college_df[['year','rank']].rename(columns={'year':'年','rank':'USNews排名'})
         college_df.set_index('年',inplace=True)
+        for index,row in data.iterrows():
+            college_df[row['type']+'世界大学排名']=pd.DataFrame(row['data']).fillna(0).rename(columns={'year':'年','rank':(row['type']+'世界大学排名')}).set_index('年')[(row['type']+'世界大学排名')]
+            college_df[row['type']+'世界大学排名']=college_df[row['type']+'世界大学排名'].astype('Int64')
     elif college_info.data_type=='录取率':
         college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
         college_df['year']=college_df['year'].astype(str)
@@ -274,11 +283,20 @@ def plot_college_data(df,data_type):
     with st.chat_message("assistant",avatar=avatars['assistant']):
         fig,ax=plt.subplots(figsize=(9,4))
         if data_type=="排名":
-            ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            ax.plot(df,'o-')
-            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-            ax.invert_yaxis()
-            ax.set_ylabel(lang_dict['data_ranking'])
+            fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(9,8))
+            axes[0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
+            axes[0].plot(df['USNews排名'],'o-')
+            axes[0].yaxis.set_major_locator(MaxNLocator(integer=True))
+            axes[0].invert_yaxis()
+            axes[0].set_ylabel(lang_dict['data_ranking'])
+            axes[1].text(0.5, 0.5, 'Forward Pathway', transform=axes[1].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
+            world_ranks=['QS', 'USNews', 'THE',  'ARWU']
+            for world_rank in world_ranks:
+                axes[1].plot(df[world_rank+'世界大学排名'],'o-',label=world_rank+' '+lang_dict['data_world_ranking'])
+            axes[1].yaxis.set_major_locator(MaxNLocator(integer=True))
+            axes[1].invert_yaxis()
+            axes[1].set_ylabel(lang_dict['data_world_ranking'])
+            axes[1].legend()
         elif data_type=="录取率":
             ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
             ax.plot(df.index,df['男生录取率'],'bo-',label=lang_dict['data_men_adm'])
@@ -325,7 +343,7 @@ def plot_college_data(df,data_type):
             explode=((df[1]['学生种族']==lang_dict['data_race_nr'])/6).to_list()
             axes[1].pie(df[1]['数量'],labels=df[1]['学生种族'],explode=explode,autopct=my_autopct)
         elif data_type=='学生人数':
-            fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(9,6))
+            fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(9,8))
             axes[0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
             axes[0].plot(df['year'],df['本科生人数'],'o-',label=lang_dict['data_under_students_num'])
             axes[0].plot(df['year'],df['研究生人数'],'o-',label=lang_dict['data_grad_students_num'])
@@ -378,6 +396,7 @@ def college_data_comments(state):
     college_cname=state['college_info'].cname
     college_ename=state['college_info'].ename
     college_url='https://www.forwardpathway.com/'+state['college_info'].postid
+    question=state['question']
     prompt = ChatPromptTemplate.from_messages([
         ('system',lang_dict['prompt_comments_system']),
         ('human',lang_dict['prompt_comments_human'])
@@ -388,7 +407,8 @@ def college_data_comments(state):
         'college_ename':college_ename,
         'data_type':data_type,
         'data':df,
-        'college_url':college_url
+        'college_url':college_url,
+        'question':question
     })
     return {'generation':generation}
     
