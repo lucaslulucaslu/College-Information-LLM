@@ -8,7 +8,7 @@ Additionally, we aim to create a chatbot that not only converses effectively but
 For rapid development, we will use Streamlit for the app interface and Matplotlib for data visualization. For data, we will utilize Forward Pathway's existing college database.
 
 > [!TIP]
-> Try out our online app for a first impression: [College Data LLM](https://chat.forwardpathway.com/)
+> Try out our online app for a first impression: [College Data LLM](https://chat.forwardpathway.com/?lang=en)
 
 ## Integrating LangGraph, Custom Knowledge Base Vectorstore, RAG, ChatGPT API, and College Data Visualization
 Below is the LangGraph flow chart:
