@@ -94,7 +94,7 @@ class GraphState(TypedDict):
     chat_history:list
 
 def retrieve(state):
-    #print("---RETRIEVE---")
+#print("---RETRIEVE---")
     vector=TXTKnowledgeBase(txt_source_folder_path='lxbd').return_retriever_from_persistant_vector_db()
     vector_lxsq=TXTKnowledgeBase(txt_source_folder_path='lxsq').return_retriever_from_persistant_vector_db()
     vector_emergency=TXTKnowledgeBase(txt_source_folder_path='emergency').return_retriever_from_persistant_vector_db()
@@ -151,10 +151,10 @@ def route_question(state):
     source = question_router.invoke({"question": question})
     if source.datasource == "vectorstore":
         #print("---ROUTE QUESTION TO RAG---")
-        return "vectorstore"
+        return "to_retrieve"
     elif source.datasource=="database":
         #print("---ROUTE QUESTION TO DATABASE----")
-        return "database"
+        return "to_database"
 
 def get_college_info(state):
     #print("---COLLEGE NAME---")
@@ -188,7 +188,7 @@ def college_data_plot(state):
     college_info=state['college_info']
     dataURLs={
         "rank_adm":"https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20231213.php?name=",
-        "world_rank":"https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4.php?name=",
+        "world_rank":"https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4_20240605.php?name=",
         "score":"https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
         "students":"https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
         "students_number":"https://www.forwardpathway.com/d3v7/dataphp/school_database/international_students_20240118.php?name=",
@@ -200,10 +200,12 @@ def college_data_plot(state):
         data=pd.read_json(dataURLs["world_rank"]+str(college_info.postid))
         #college_df['year']=college_df['year'].astype(str)
         college_df=college_df[['year','rank']].rename(columns={'year':'年','rank':'USNews排名'})
+        college_df.loc[len(college_df)]=pd.Series({'年':college_df['年'].to_list()[-1]+1}).astype('Int64')
         college_df.set_index('年',inplace=True)
         for index,row in data.iterrows():
             college_df[row['type']+'世界大学排名']=pd.DataFrame(row['data']).fillna(0).rename(columns={'year':'年','rank':(row['type']+'世界大学排名')}).set_index('年')[(row['type']+'世界大学排名')]
             college_df[row['type']+'世界大学排名']=college_df[row['type']+'世界大学排名'].astype('Int64')
+        college_df.dropna(how='all',inplace=True)
     elif college_info.data_type=='录取率':
         college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
         college_df['year']=college_df['year'].astype(str)
@@ -414,9 +416,21 @@ def college_data_comments(state):
     
 def database_router(state):
     if state['college_info'].data_type in {'排名','录取率','申请录取人数','成绩要求','学生组成','学生人数','学费','毕业率','犯罪率'}:
-        return "college_data_plot"
+        return "to_college_data_plot"
     else:
-        return "retrieve"
+        return "to_retrieve"
+
+def database_to_retriever(state):
+    question=state['question']
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语"),
+            ("human", "{question}"),
+        ]
+    )
+    chain=prompt | llm | StrOutputParser()
+    new_question=chain.invoke({"question":question})
+    return {"question":new_question}
 ######################## Build LangGraph ####################################
 workflow = StateGraph(GraphState)
 
@@ -425,20 +439,29 @@ workflow.add_node('database',get_college_info)
 workflow.add_node('generate',generate)
 workflow.add_node('college_data_plot',college_data_plot)
 workflow.add_node('college_data_comments',college_data_comments)
+workflow.add_node('database_to_retriever',database_to_retriever)
 
 workflow.set_conditional_entry_point(
     route_question,
     {
-        "vectorstore": "retrieve",
-        "database":"database"
+        "to_retrieve": "retrieve",
+        "to_database":"database"
     },
 )
 
 workflow.add_edge("retrieve","generate")
 workflow.add_edge("generate",END)
 
-workflow.add_conditional_edges("database",database_router)
+workflow.add_conditional_edges(
+    "database",
+    database_router,
+    {
+        "to_college_data_plot":"college_data_plot",
+        "to_retrieve":"database_to_retriever"
+    }
+)
 
+workflow.add_edge("database_to_retriever","retrieve")
 workflow.add_edge("college_data_plot","college_data_comments")
 workflow.add_edge("college_data_comments",END)
 app = workflow.compile()
@@ -463,9 +486,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": lang_dict['init_content']}]
 if 'input_time' not in st.session_state:
     st.session_state.input_time=datetime.datetime.now()-datetime.timedelta(seconds=10)
-def stream_response(msg):
-    for r in msg:
-        yield r
 
 #################### print messages #############################
 for msg in st.session_state.messages:
@@ -490,7 +510,7 @@ if user_input := st.chat_input(lang_dict['input_box']):
                 if 'generation' in response:
                     msg=response['generation']
                     with st.chat_message("assistant",avatar=avatars['assistant']):
-                        msg=st.write_stream(stream_response(msg))
+                        msg=st.write_stream(msg)
                         st.session_state.messages.append({"role": "assistant", "content": msg})
                 elif 'data' in response:
                     data=response['data']

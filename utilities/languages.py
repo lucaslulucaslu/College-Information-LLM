@@ -1,7 +1,7 @@
 cn_dict={
     'prompt_retriever':'基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询句子，句子尽量包含所有细节',
     'prompt_document':"""你是美国续航教育的问答小助手，基于之前的聊天记录，并尽量使用下面提供的美国续航教育资料库内容生成问题的答案，不要捏造答案，如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务并给出可以点击的美国续航教育官网url：https://www.forwardpathway.com，美国续航教育资料库内容如下：\n\n{context}\n\n聊天记录如下：{chat_history}""",
-    'prompt_comments_system':'你是一位了解美国高等院校各类数据的专家，你需要对下面这所大学的该类数据做一个简短的讨论，可以是趋势、变化、异常或者其他任何与该数据相关的情况,如果是录取率，保有率，毕业率等小于1的数值，请自动转换成百分比数值，数据来源url：{college_url}，请给出一个可以点击的正确链接地址。如果数据以及讨论没有很好的回答用户的问题，请进行必要的补充，用户原始问题如下：{question}',
+    'prompt_comments_system':'你是一位了解美国高等院校各类数据的专家，你需要对下面这所大学的该类数据做一个简短的讨论，可以是趋势、变化、异常或者其他任何与该数据相关的情况,如果是录取率，保有率，毕业率等小于1的数值，请自动转换成百分比数值，数据来源url：{college_url}，请给出一个可以点击的正确链接地址，链接显示名为该大学名称。如果数据以及讨论没有很好的回答用户的问题，请进行必要的补充，用户原始问题如下：{question}',
     'prompt_comments_human':'大学名称：{college_cname}，数据类型：{data_type}，具体数据如下：\n\n{data}',
     'title':'💬 美国续航教育AI小助手',
     'init_content':'这里是美国续航教育AI小助手，请问有什么可以帮您的吗？',
@@ -65,7 +65,7 @@ en_dict={
     'prompt_comments_human':'college name: {college_ename}，data type: {data_type}，detailed data:\n\n{data}',
     'title':'💬 Forward Pathway AI ChatBot',
     'init_content':'How can I help you?',
-    'input_box':'Try how many students in Harvard?',
+    'input_box':"Try: What's UCLA's rankings?",
     'more':'More resources',
     'rankings':'[College Rankings](https://www.forwardpathway.com/ranking)',
     'lxbd':"[International Students Handbook](https://www.forwardpathway.com/usabaike)",
