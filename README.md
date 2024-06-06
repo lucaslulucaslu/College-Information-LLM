@@ -25,3 +25,17 @@ Starting from the start, we input our question, which is then categorized into o
   - For non-data-related questions, or questions that are not suitable for plotting, the process retrieves our knowledge base from a vector store by querying the question. Both the question and the retrieved documents are then sent to the final "generate" node, where the LLM formulates an answer, this Retrieval-Augmented Generation (RAG) procedure, supported by relevant documents, ensures that the answer is more accurate and reliable. Finally, the process reaches the end.
 
 This architecture achieves remarkable results because each node in the flow chart asks very specific questions, allowing the LLM to provide accurate answers at each step. Consequently, we can expect a much better final answer compared to using pure LLMs alone.
+
+## App file structure
+main.py - Streamlit main py file, can be executed by `streamlit run main.py`
+
+requirements.txt - has all required packages
+  
+  -- logos - folder for image files for logo and barcode
+  
+  -- utilities - folder for utitlities, like fonts, language dictionary and vector database generator/loader
+  
+  -- vector - folder for stored vector stores, only basic knowledge base and college list here
+
+>[!TIP]
+>To enhance the user experience, especially for impatient customers, we integrate llm.stream() with st.write_stream(), enabling output streaming. This allows users to receive responses in real-time, improving the overall responsiveness and satisfaction.
