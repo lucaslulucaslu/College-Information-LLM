@@ -23,4 +23,5 @@ Starting from the start, we input our question, which is then categorized into o
         If the data is not plottable, the question is sent to the "database_to_retriever" node, where it is rewritten and forwarded to the "retrieve" node for further processing. This will be combined with RAG in the next section.
 - General Questions:
   - For non-data-related questions, or questions that are not suitable for plotting, the process retrieves our knowledge base from a vector store by querying the question. Both the question and the retrieved documents are then sent to the final "generate" node, where the LLM formulates an answer, this Retrieval-Augmented Generation (RAG) procedure, supported by relevant documents, ensures that the answer is more accurate and reliable. Finally, the process reaches the end.
+
 This architecture achieves remarkable results because each node in the flow chart asks very specific questions, allowing the LLM to provide accurate answers at each step. Consequently, we can expect a much better final answer compared to using pure LLMs alone.
