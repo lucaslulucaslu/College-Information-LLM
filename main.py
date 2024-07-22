@@ -27,14 +27,14 @@ from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
 from utilities import languages
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
-#os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
+#os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
+os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 
 SEARCH_DOCS_NUM=4
 SEARCH_COLLEGES_NUM=2
 
 ################# Choose LLM Model can also be gpt-4o with better performance but more expensive #############################
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 ##############choose language######################
 lang_index=('lang' in st.query_params and st.query_params['lang'].upper()=='EN')
@@ -122,66 +122,88 @@ def generate(state):
     return {"documents": documents, "question": question, "generation": generation}
 
 def route_question(state):
-    #print("---ROUTE QUESTION---")
+    # print("---ROUTE QUESTION---")
     # Data model
     class RouteQuery(BaseModel):
         """基于用户的查询词条选择最相关的资料来源"""
-    
-        datasource: Literal["vectorstore","database"] = Field(
+
+        datasource: Literal["vectorstore", "database"] = Field(
             ...,
             description="基于用户的问题选择vectrostore或者database.",
         )
 
     structured_llm_router = llm.with_structured_output(RouteQuery)
-    
+
     # Prompt
-    system = """你是一位选择路径的专家，你需要基于用户的提问选择是使用vectorstore还是database.
+    system = """你是一位选择路径的专家，你需要基于用户的问题以及历史聊天记录选择是使用vectorstore还是database.
     vectorstore包含了关于总体的在美国留学相关的资料，比如美国大学排名，美国留学申请，美国转学等等.
     database包含了特定一所大学的相关数据，比如这所大学的排名、录取率、申请人数、录取人数、成绩要求、学生组成、学生人数、学费、住宿费、犯罪率等等.
     如果用户的问题是美国留学相关但是不针对某一所大学的问题，或者用户需要知道两所或两所以上大学的相关信息，请选择vectorstore，如果是针对特定一所美国大学且只能是一所大学的问题，请选择database."""
     route_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
-            ("human", "{question}"),
+            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
         ]
     )
-    
+
     question_router = route_prompt | structured_llm_router
-    question = state["question"]
-    source = question_router.invoke({"question": question})
+    source = question_router.invoke(
+        {"question": state["question"], "chat_history": state["chat_history"]}
+    )
     if source.datasource == "vectorstore":
-        #print("---ROUTE QUESTION TO RAG---")
+        # print("---ROUTE QUESTION TO RAG---")
         return "to_retrieve"
-    elif source.datasource=="database":
-        #print("---ROUTE QUESTION TO DATABASE----")
+    elif source.datasource == "database":
+        # print("---ROUTE QUESTION TO DATABASE----")
         return "to_database"
 
 def get_college_info(state):
-    #print("---COLLEGE NAME---")
-    
-    college_data=CollegesData()
-    college_vector=college_data.return_colleges_vector_from_db()
-    college_retriever=college_vector.as_retriever(search_kwargs={'k':SEARCH_COLLEGES_NUM})
-    prompt = ChatPromptTemplate.from_messages([
-        ('system',"你是一位了解美国高等院校的专家，你需要根据用户的问题提取出一所美国高等院校的全名，包括中文名和英文名，输出格式为'中文全名（英文全名）'"),
-        ('human',"{question}")
-    ])
-    college_name_chain=prompt | llm | StrOutputParser()
-    
-    college_info_structured_output=llm.with_structured_output(College_Info)
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "基于下面学校信息内容及用户的问题，按照格式输出学校信息回答"),
-        ("human", "用户问题如下：{question}，学校信息内容如下：{context}"),
-    ])
-    college_info_chain=prompt | college_info_structured_output
+    # print("---COLLEGE NAME---")
 
-    question=state["question"]
-    college_name=college_name_chain.invoke({'question':question})
-    college_info=college_info_chain.invoke({
-        'question':question,
-        'context':college_retriever.invoke(college_name)
-    })
-    return {'college_info':college_info,'question':question}
+    college_data = CollegesData()
+    college_vector = college_data.return_colleges_vector_from_db()
+    college_retriever = college_vector.as_retriever(
+        search_kwargs={"k": SEARCH_COLLEGES_NUM}
+    )
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "你是一位了解美国高等院校的专家，你需要根据用户的问题及历史聊天记录提取出一所美国高等院校的全名，包括中文名和英文名，输出格式为'中文全名（英文全名）'",
+            ),
+            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
+        ]
+    )
+    college_name_chain = prompt | llm | StrOutputParser()
+
+    college_info_structured_output = llm.with_structured_output(College_Info)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "基于下面学校信息内容及用户的问题和历史聊天记录，按照格式输出学校信息回答",
+            ),
+            (
+                "human",
+                "用户问题如下：{question}\n\n学校信息内容如下：{context}\n\n历史聊天记录如下：{chat_history}",
+            ),
+        ]
+    )
+    college_info_chain = prompt | college_info_structured_output
+
+    question = state["question"]
+    college_name = college_name_chain.invoke(
+        {"question": question, "chat_history": state["chat_history"]}
+    )
+    college_info = college_info_chain.invoke(
+        {
+            "question": question,
+            "context": college_retriever.invoke(college_name),
+            "chat_history": state["chat_history"],
+        }
+    )
+    return {"college_info": college_info, "question": question}
+
 
 def college_data_plot(state):
     question=state['question']
@@ -415,7 +437,18 @@ def college_data_comments(state):
     return {'generation':generation}
     
 def database_router(state):
-    if state['college_info'].data_type in {'排名','录取率','申请录取人数','成绩要求','学生组成','学生人数','学费','毕业率','犯罪率'}:
+    post_id=state["college_info"].postid
+    if state["college_info"].data_type in {
+        "排名",
+        "录取率",
+        "申请录取人数",
+        "成绩要求",
+        "学生组成",
+        "学生人数",
+        "学费",
+        "毕业率",
+        "犯罪率",
+    } and len(post_id)>0:
         return "to_college_data_plot"
     else:
         return "to_retrieve"
@@ -476,7 +509,7 @@ with st.sidebar:
     lang_dict['service_emergency']
     st.divider()
     st.subheader(lang_dict['service_barcode'])
-    st.image('./logos/WeCom_barcode.png')
+    st.image('./logos/WeCom_barcode.png',width=200)
     st.divider()
     st.markdown(lang_dict['disclaim'])
 st.title(lang_dict['title'])
