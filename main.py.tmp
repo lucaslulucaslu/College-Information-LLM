@@ -214,7 +214,7 @@ def college_data_plot(state):
         "score":"https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
         "students":"https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
         "students_number":"https://www.forwardpathway.com/d3v7/dataphp/school_database/international_students_20240118.php?name=",
-        "info":"https://www.forwardpathway.com/d3v7/dataphp/school_database/school_information_20240821.php?name=",
+        "info":"https://www.forwardpathway.com/d3v7/dataphp/school_database/school_information_20240118.php?name=",
         "crime":"https://www.forwardpathway.com/d3v7/dataphp/school_database/crime_yearly_20240324.php?name="
     }
     if college_info.data_type=='排名':
@@ -384,19 +384,19 @@ def plot_college_data(df,data_type):
         elif data_type=='学费':
             fig,axes=plt.subplots(nrows=2,ncols=2,figsize=(9,6))
             axes[0,0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0,0].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[0,0].plot(df['year'],df['州内本科生学费'],'o-',label=lang_dict['data_tuition_in_under'])
-            axes[0,0].plot(df['year'],df['州内研究生学费'],'o-',label=lang_dict['data_tuition_in_grad'])
-            axes[0,0].set_ylabel(lang_dict['data_tuition_fees_in'])
+            axes[0,0].plot(df['year'],df['州内本科生学费'],'o-',label=lang_dic['data_tuition_in_under'])
+            axes[0,0].plot(df['year'],df['州内研究生学费'],'o-',label=lang_dic['data_tuition_in_grad'])
+            axes[0,0].set_ylabel(lang_dict['州内学生学费'])
             axes[0,0].tick_params(axis='x',rotation=30)
             axes[0,0].legend()
             axes[0,1].text(0.5, 0.5, 'Forward Pathway', transform=axes[0,1].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[0,1].plot(df['year'],df['外州本科生学费'],'o-',label=lang_dict['data_tuition_out_under'])
-            axes[0,1].plot(df['year'],df['外州研究生学费'],'o-',label=lang_dict['data_tuition_out_grad'])
-            axes[0,1].set_ylabel(lang_dict['data_tuition_fees_out'])
+            axes[0,1].plot(df['year'],df['外州本科生学费'],'o-',label=lang_dic['data_tuition_out_under'])
+            axes[0,1].plot(df['year'],df['外州研究生学费'],'o-',label=lang_dic['data_tuition_out_grad'])
+            axes[0,1].set_ylabel(lang_dict['外州学生学费'])
             axes[0,1].tick_params(axis='x',rotation=30)
             axes[0,1].legend()
             axes[1,0].text(0.5, 0.5, 'Forward Pathway', transform=axes[1,0].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[1,0].plot(df['year'],df['住宿费'],'o-',label=lang_dict['data_room_board'])
+            axes[1,0].plot(df['year'],df['住宿费'],'o-',label=lang_dic['data_room_board'])
             axes[1,0].set_ylabel(lang_dict['data_room_board'])
             axes[1,0].tick_params(axis='x',rotation=30)
             axes[1,0].legend()
