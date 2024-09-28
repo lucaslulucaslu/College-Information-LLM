@@ -1,19 +1,18 @@
 import datetime
 import os
 import time
-from typing import List, Literal
+from typing import List, Literal, TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from matplotlib import font_manager
 from matplotlib.ticker import MaxNLocator, PercentFormatter
-from typing_extensions import TypedDict
+from pydantic import BaseModel, Field
 
 from utilities import languages
 from utilities.colleges import CollegesData
