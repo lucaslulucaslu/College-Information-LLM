@@ -56,7 +56,10 @@ cn_dict={
     'data_crime_rate':'每千人学生记过、犯罪率',
     'error_too_many_requests':'为了AI服务器更好的运行，两次提问输入间隔请不要少于3秒时间！',
     'languages':'语言选择',
-    'disclaim':'*该APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用'
+    'disclaim':'*该APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用',
+    'status_wait':'整理资料中，请稍候……',
+    'status_generate':'输出资料中……',
+    'status_finish':'完成。'
 }
 en_dict={
     'prompt_retriever':'Given the above conversation, generate a search query to look up to get information relevant to the conversation',
@@ -115,5 +118,8 @@ en_dict={
     'data_retention_rate':'Retention Rate',
     'data_crime_rate':'Crime rate per 1000 students',
     'error_too_many_requests':'Please wait for 3 seconds to input another question!',
-    'disclaim':'*The data and information of this APP are from the official website of Forward Pathway LLC, and the output content has been organized by ChatGPT. Please note that the answers during the testing phase of the APP may not be accurate, so please verify before using.'
+    'disclaim':'*The data and information of this APP are from the official website of Forward Pathway LLC, and the output content has been organized by ChatGPT. Please note that the answers during the testing phase of the APP may not be accurate, so please verify before using.',
+    'status_wait':'Putting everything togerth...',
+    'status_generate':'Generating content...',
+    'status_finish':'Finished.'
 }

@@ -3,7 +3,7 @@ st.set_page_config(
     page_title="Forward Pathway AI Chatbot",
     page_icon="./logos/fp_logo.png",
     menu_items={'About': "APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用"})
-
+import time
 import os
 import datetime
 import pandas as pd
@@ -27,7 +27,6 @@ from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
 from utilities import languages
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
-#os.environ["LANGCHAIN_PROJECT"] = "college-information-llm"
 os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 
 SEARCH_DOCS_NUM=4
@@ -209,7 +208,7 @@ def college_data_plot(state):
     question=state['question']
     college_info=state['college_info']
     dataURLs={
-        "rank_adm":"https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20231213.php?name=",
+        "rank_adm":"https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20240923.php?name=",
         "world_rank":"https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4_20240605.php?name=",
         "score":"https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
         "students":"https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
@@ -538,18 +537,26 @@ if user_input := st.chat_input(lang_dict['input_box']):
             st.write(user_input)
     
         inputs={'question':user_input,'chat_history':st.session_state.messages[-10:]}
+        placeholder=st.empty()
+        with placeholder.container():
+            status=st.status(lang_dict['status_wait'])
         for output in app.stream(inputs):
             for key,response in output.items():
                 if 'generation' in response:
+                    status.update(label=lang_dict['status_generate'])
                     msg=response['generation']
                     with st.chat_message("assistant",avatar=avatars['assistant']):
                         msg=st.write_stream(msg)
                         st.session_state.messages.append({"role": "assistant", "content": msg})
                 elif 'data' in response:
+                    status.update(label=lang_dict['status_generate'])
                     data=response['data']
                     data_type=(response['college_info']).data_type
                     plot_college_data(data,data_type)
                     st.session_state.messages.append({"role": "data", "content": data,"data_type":data_type})
+        status.update(label=lang_dict['status_finish'],state="complete")
+        time.sleep(1)
+        placeholder.empty()
     
     
 
