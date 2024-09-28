@@ -1,26 +1,23 @@
-import time
-import os
 import datetime
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter, MaxNLocator
-from matplotlib import font_manager
+import os
+import time
+from typing import List, Literal
 
-from langchain_openai import ChatOpenAI
+import matplotlib.pyplot as plt
+import pandas as pd
+import streamlit as st
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_core.output_parsers import StrOutputParser
-
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
-
+from matplotlib import font_manager
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 from typing_extensions import TypedDict
-from typing import List
-from typing import Literal
 
+from utilities import languages
 from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
-from utilities import languages
-import streamlit as st
 
 st.set_page_config(
     page_title="Forward Pathway AI Chatbot",
@@ -36,10 +33,10 @@ os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 SEARCH_DOCS_NUM = 4
 SEARCH_COLLEGES_NUM = 2
 
-################# Choose LLM Model can also be gpt-4o with better performance but more expensive #############################
+# Choose LLM Model
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
-##############choose language######################
+# choose language
 lang_index = "lang" in st.query_params and st.query_params["lang"].upper() == "EN"
 
 language_question = ["语言选择：", "Languages:"]
@@ -61,13 +58,11 @@ if language == "EN":
     lang_dict = languages.en_dict
 else:
     lang_dict = languages.cn_dict
-    font_path = ".//utilities//MicrosoftYaHei.ttf"  # Your font path goes here
+    font_path = ".//utilities//MicrosoftYaHei.ttf"
     font_manager.fontManager.addfont(font_path)
     prop = font_manager.FontProperties(fname=font_path)
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = prop.get_name()
-    # plt.rcParams['font.sans-serif']=['Microsoft YaHei']
-    # plt.rcParams['axes.unicode_minus'] = False
 
 
 class College_Info(BaseModel):
@@ -76,7 +71,8 @@ class College_Info(BaseModel):
     postid: str = Field(description="学校的postid")
     unitid: str = Field(description="学校的unitid")
     data_type: str = Field(
-        description="数据种类，可以是'排名'、'录取率'、'申请录取人数'、'成绩要求'、'学生组成'、'学生人数'、'学费'、'毕业率'、'犯罪率'这几种中的一种，如果留学生相关则输出'学生人数'，如果涉及住宿费则输出'学费'，如果涉及学生保有率则输出'毕业率'，如果不在以上这些类型中请输出'不是数据'"
+        description="数据种类，可以是'排名'、'录取率'、'申请录取人数'、'成绩要求'、'学生组成'、'学生人数'、'学费'、'毕业率'、'犯罪率'这几种中的一种，\
+            如果留学生相关则输出'学生人数'，如果涉及住宿费则输出'学费'，如果涉及学生保有率则输出'毕业率'，如果不在以上这些类型中请输出'不是数据'"
     )
 
 
@@ -165,7 +161,8 @@ def route_question(state):
     system = """你是一位选择路径的专家，你需要基于用户的问题以及历史聊天记录选择是使用vectorstore还是database.
     vectorstore包含了关于总体的在美国留学相关的资料，比如美国大学排名，美国留学申请，美国转学等等.
     database包含了特定一所大学的相关数据，比如这所大学的排名、录取率、申请人数、录取人数、成绩要求、学生组成、学生人数、学费、住宿费、犯罪率等等.
-    如果用户的问题是美国留学相关但是不针对某一所大学的问题，或者用户需要知道两所或两所以上大学的相关信息，请选择vectorstore，如果是针对特定一所美国大学且只能是一所大学的问题，请选择database."""
+    如果用户的问题是美国留学相关但是不针对某一所大学的问题，或者用户需要知道两所或两所以上大学的相关信息，请选择vectorstore，\
+    如果是针对特定一所美国大学且只能是一所大学的问题，请选择database."""
     route_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
@@ -401,7 +398,7 @@ def college_data_plot(state):
     return {"college_info": college_info, "question": question, "data": college_df}
 
 
-##### Plot College Data ##########
+# Plot College Data
 def plot_college_data(df, data_type):
     with st.chat_message("assistant", avatar=avatars["assistant"]):
         fig, ax = plt.subplots(figsize=(9, 4))
@@ -498,7 +495,7 @@ def plot_college_data(df, data_type):
             ax.set_ylabel(lang_dict["data_enrollment"])
             ax_twin.set_ylabel(lang_dict["data_reject_num"])
             lns = lns1 + lns2 + lns3
-            labs = [l.get_label() for l in lns]
+            labs = [ln.get_label() for ln in lns]
             plt.legend(lns, labs, loc=0)
         elif data_type == "成绩要求":
             fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(9, 10))
@@ -801,7 +798,7 @@ def database_to_retriever(state):
     return {"question": new_question}
 
 
-######################## Build LangGraph ####################################
+# Build LangGraph
 workflow = StateGraph(GraphState)
 
 workflow.add_node("retrieve", retrieve)
@@ -833,7 +830,7 @@ workflow.add_edge("college_data_plot", "college_data_comments")
 workflow.add_edge("college_data_comments", END)
 app = workflow.compile()
 
-######################### Build Streamlit APP ##################################
+# Build Streamlit APP
 with st.sidebar:
     st.subheader(lang_dict["more"], divider="rainbow")
     lang_dict["rankings"]
@@ -858,7 +855,7 @@ if "input_time" not in st.session_state:
         seconds=10
     )
 
-#################### print messages #############################
+# print messages
 for msg in st.session_state.messages:
     if msg["role"] == "user" or msg["role"] == "assistant":
         with st.chat_message(msg["role"], avatar=avatars[msg["role"]]):
