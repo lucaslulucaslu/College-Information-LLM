@@ -1,21 +1,15 @@
-import streamlit as st
-st.set_page_config(
-    page_title="Forward Pathway AI Chatbot",
-    page_icon="./logos/fp_logo.png",
-    menu_items={'About': "APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用"})
 import time
 import os
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter,MaxNLocator
+from matplotlib.ticker import PercentFormatter, MaxNLocator
 from matplotlib import font_manager
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.output_parsers import JsonOutputParser
 
 from langgraph.graph import END, StateGraph
 
@@ -26,50 +20,66 @@ from typing import Literal
 from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
 from utilities import languages
+import streamlit as st
+
+st.set_page_config(
+    page_title="Forward Pathway AI Chatbot",
+    page_icon="./logos/fp_logo.png",
+    menu_items={
+        "About": "APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用"
+    },
+)
+
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 
-SEARCH_DOCS_NUM=4
-SEARCH_COLLEGES_NUM=2
+SEARCH_DOCS_NUM = 4
+SEARCH_COLLEGES_NUM = 2
 
 ################# Choose LLM Model can also be gpt-4o with better performance but more expensive #############################
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 ##############choose language######################
-lang_index=('lang' in st.query_params and st.query_params['lang'].upper()=='EN')
+lang_index = "lang" in st.query_params and st.query_params["lang"].upper() == "EN"
 
-language_question=['语言选择：','Languages:']
+language_question = ["语言选择：", "Languages:"]
+
+
 def change_language_fuc():
-    if 'messages' in st.session_state:
+    if "messages" in st.session_state:
         del st.session_state["messages"]
 
-language=st.radio(
+
+language = st.radio(
     label=language_question[lang_index],
-    options=['CN','EN'],
+    options=["CN", "EN"],
     horizontal=True,
     index=lang_index,
-    on_change=change_language_fuc
+    on_change=change_language_fuc,
 )
-if language=='EN':
-    lang_dict=languages.en_dict
+if language == "EN":
+    lang_dict = languages.en_dict
 else:
-    lang_dict=languages.cn_dict
-    font_path = './/utilities//MicrosoftYaHei.ttf'  # Your font path goes here
+    lang_dict = languages.cn_dict
+    font_path = ".//utilities//MicrosoftYaHei.ttf"  # Your font path goes here
     font_manager.fontManager.addfont(font_path)
     prop = font_manager.FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = 'sans-serif'
-    plt.rcParams['font.sans-serif'] = prop.get_name()
-    #plt.rcParams['font.sans-serif']=['Microsoft YaHei']
-    #plt.rcParams['axes.unicode_minus'] = False 
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["font.sans-serif"] = prop.get_name()
+    # plt.rcParams['font.sans-serif']=['Microsoft YaHei']
+    # plt.rcParams['axes.unicode_minus'] = False
 
 
 class College_Info(BaseModel):
-    cname:str=Field(description='学校中文全名')
-    ename:str=Field(description='学校英文全名')
-    postid:str=Field(description='学校的postid')
-    unitid:str=Field(description='学校的unitid')
-    data_type:str=Field(description="数据种类，可以是'排名'、'录取率'、'申请录取人数'、'成绩要求'、'学生组成'、'学生人数'、'学费'、'毕业率'、'犯罪率'这几种中的一种，如果留学生相关则输出'学生人数'，如果涉及住宿费则输出'学费'，如果涉及学生保有率则输出'毕业率'，如果不在以上这些类型中请输出'不是数据'")
-    
+    cname: str = Field(description="学校中文全名")
+    ename: str = Field(description="学校英文全名")
+    postid: str = Field(description="学校的postid")
+    unitid: str = Field(description="学校的unitid")
+    data_type: str = Field(
+        description="数据种类，可以是'排名'、'录取率'、'申请录取人数'、'成绩要求'、'学生组成'、'学生人数'、'学费'、'毕业率'、'犯罪率'这几种中的一种，如果留学生相关则输出'学生人数'，如果涉及住宿费则输出'学费'，如果涉及学生保有率则输出'毕业率'，如果不在以上这些类型中请输出'不是数据'"
+    )
+
+
 class GraphState(TypedDict):
     """
     Represents the state of our graph.
@@ -86,39 +96,57 @@ class GraphState(TypedDict):
     question: str
     generation: str
     documents: List[str]
-    college_info:College_Info
-    data_type:str
-    plot_type:str
-    data:pd.DataFrame
-    chat_history:list
+    college_info: College_Info
+    data_type: str
+    plot_type: str
+    data: pd.DataFrame
+    chat_history: list
+
 
 def retrieve(state):
-#print("---RETRIEVE---")
-    vector=TXTKnowledgeBase(txt_source_folder_path='lxbd').return_retriever_from_persistant_vector_db()
-    vector_lxsq=TXTKnowledgeBase(txt_source_folder_path='lxsq').return_retriever_from_persistant_vector_db()
-    vector_emergency=TXTKnowledgeBase(txt_source_folder_path='emergency').return_retriever_from_persistant_vector_db()
+    # print("---RETRIEVE---")
+    vector = TXTKnowledgeBase(
+        txt_source_folder_path="lxbd"
+    ).return_retriever_from_persistant_vector_db()
+    vector_lxsq = TXTKnowledgeBase(
+        txt_source_folder_path="lxsq"
+    ).return_retriever_from_persistant_vector_db()
+    vector_emergency = TXTKnowledgeBase(
+        txt_source_folder_path="emergency"
+    ).return_retriever_from_persistant_vector_db()
     vector.merge_from(vector_lxsq)
     vector.merge_from(vector_emergency)
-    documents_retriever = vector.as_retriever(search_kwargs={'k':SEARCH_DOCS_NUM})
-    question=state["question"]
-    documents=documents_retriever.invoke(question)
-    return {"documents":documents,"question":question,"chat_history":state['chat_history']}
+    documents_retriever = vector.as_retriever(search_kwargs={"k": SEARCH_DOCS_NUM})
+    question = state["question"]
+    documents = documents_retriever.invoke(question)
+    return {
+        "documents": documents,
+        "question": question,
+        "chat_history": state["chat_history"],
+    }
+
 
 def generate(state):
-    #print("---GENERATE---")
+    # print("---GENERATE---")
     question = state["question"]
     documents = state["documents"]
     # Prompt
-    prompt = ChatPromptTemplate.from_messages([
-        ('system',lang_dict['prompt_document']),
-        ('human',"{question}")
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", lang_dict["prompt_document"]), ("human", "{question}")]
+    )
 
     rag_chain = prompt | llm | StrOutputParser()
     # RAG generation
-    generation = rag_chain.stream({"context": documents, "question": question,'chat_history':state['chat_history']})
+    generation = rag_chain.stream(
+        {
+            "context": documents,
+            "question": question,
+            "chat_history": state["chat_history"],
+        }
+    )
 
     return {"documents": documents, "question": question, "generation": generation}
+
 
 def route_question(state):
     # print("---ROUTE QUESTION---")
@@ -155,6 +183,7 @@ def route_question(state):
     elif source.datasource == "database":
         # print("---ROUTE QUESTION TO DATABASE----")
         return "to_database"
+
 
 def get_college_info(state):
     # print("---COLLEGE NAME---")
@@ -205,360 +234,674 @@ def get_college_info(state):
 
 
 def college_data_plot(state):
-    question=state['question']
-    college_info=state['college_info']
-    dataURLs={
-        "rank_adm":"https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20240923.php?name=",
-        "world_rank":"https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4_20240605.php?name=",
-        "score":"https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
-        "students":"https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
-        "students_number":"https://www.forwardpathway.com/d3v7/dataphp/school_database/international_students_20240118.php?name=",
-        "info":"https://www.forwardpathway.com/d3v7/dataphp/school_database/school_information_20240821.php?name=",
-        "crime":"https://www.forwardpathway.com/d3v7/dataphp/school_database/crime_yearly_20240324.php?name="
+    question = state["question"]
+    college_info = state["college_info"]
+    dataURLs = {
+        "rank_adm": "https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20240923.php?name=",
+        "world_rank": "https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4_20240605.php?name=",
+        "score": "https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
+        "students": "https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",
+        "students_number": "https://www.forwardpathway.com/d3v7/dataphp/school_database/international_students_20240118.php?name=",
+        "info": "https://www.forwardpathway.com/d3v7/dataphp/school_database/school_information_20240821.php?name=",
+        "crime": "https://www.forwardpathway.com/d3v7/dataphp/school_database/crime_yearly_20240324.php?name=",
     }
-    if college_info.data_type=='排名':
-        college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
-        data=pd.read_json(dataURLs["world_rank"]+str(college_info.postid))
-        #college_df['year']=college_df['year'].astype(str)
-        college_df=college_df[['year','rank']].rename(columns={'year':'年','rank':'USNews排名'})
-        college_df.loc[len(college_df)]=pd.Series({'年':college_df['年'].to_list()[-1]+1}).astype('Int64')
-        college_df.set_index('年',inplace=True)
-        for index,row in data.iterrows():
-            college_df[row['type']+'世界大学排名']=pd.DataFrame(row['data']).fillna(0).rename(columns={'year':'年','rank':(row['type']+'世界大学排名')}).set_index('年')[(row['type']+'世界大学排名')]
-            college_df[row['type']+'世界大学排名']=college_df[row['type']+'世界大学排名'].astype('Int64')
-        college_df.dropna(how='all',inplace=True)
-    elif college_info.data_type=='录取率':
-        college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
-        college_df['year']=college_df['year'].astype(str)
-        college_df=college_df[['year','rate','rate2']].rename(columns={'year':'年','rate':'男生录取率','rate2':'女生录取率'})
-        college_df.set_index('年',inplace=True)
-    elif college_info.data_type=='申请录取人数':
-        college_df=pd.read_json(dataURLs["rank_adm"]+str(college_info.postid))
-        college_df['year']=college_df['year'].astype(str)
-        college_df=college_df[['year','enroll','defer','deny']].rename(columns={'year':'年','enroll':'录取且入学人数','defer':'录取但未入学人数','deny':'拒绝人数'})
-        college_df.set_index('年',inplace=True)
-    elif college_info.data_type=='成绩要求':
-        data=pd.read_json(dataURLs["score"]+str(college_info.postid))
-        college_df=pd.DataFrame(data.columns,columns=['year'])
-        testArray={'SATR':'SAT阅读','SATM':'SAT数学','ACTC':'ACT综合','ACTE':'ACT英语','ACTM':'ACT数学'}
+    if college_info.data_type == "排名":
+        college_df = pd.read_json(dataURLs["rank_adm"] + str(college_info.postid))
+        data = pd.read_json(dataURLs["world_rank"] + str(college_info.postid))
+        # college_df['year']=college_df['year'].astype(str)
+        college_df = college_df[["year", "rank"]].rename(
+            columns={"year": "年", "rank": "USNews排名"}
+        )
+        college_df.loc[len(college_df)] = pd.Series(
+            {"年": college_df["年"].to_list()[-1] + 1}
+        ).astype("Int64")
+        college_df.set_index("年", inplace=True)
+        for index, row in data.iterrows():
+            college_df[row["type"] + "世界大学排名"] = (
+                pd.DataFrame(row["data"])
+                .fillna(0)
+                .rename(columns={"year": "年", "rank": (row["type"] + "世界大学排名")})
+                .set_index("年")[(row["type"] + "世界大学排名")]
+            )
+            college_df[row["type"] + "世界大学排名"] = college_df[
+                row["type"] + "世界大学排名"
+            ].astype("Int64")
+        college_df.dropna(how="all", inplace=True)
+    elif college_info.data_type == "录取率":
+        college_df = pd.read_json(dataURLs["rank_adm"] + str(college_info.postid))
+        college_df["year"] = college_df["year"].astype(str)
+        college_df = college_df[["year", "rate", "rate2"]].rename(
+            columns={"year": "年", "rate": "男生录取率", "rate2": "女生录取率"}
+        )
+        college_df.set_index("年", inplace=True)
+    elif college_info.data_type == "申请录取人数":
+        college_df = pd.read_json(dataURLs["rank_adm"] + str(college_info.postid))
+        college_df["year"] = college_df["year"].astype(str)
+        college_df = college_df[["year", "enroll", "defer", "deny"]].rename(
+            columns={
+                "year": "年",
+                "enroll": "录取且入学人数",
+                "defer": "录取但未入学人数",
+                "deny": "拒绝人数",
+            }
+        )
+        college_df.set_index("年", inplace=True)
+    elif college_info.data_type == "成绩要求":
+        data = pd.read_json(dataURLs["score"] + str(college_info.postid))
+        college_df = pd.DataFrame(data.columns, columns=["year"])
+        testArray = {
+            "SATR": "SAT阅读",
+            "SATM": "SAT数学",
+            "ACTC": "ACT综合",
+            "ACTE": "ACT英语",
+            "ACTM": "ACT数学",
+        }
         for test in testArray.keys():
-            college_df[test+'25']=None
-            college_df[test+'75']=None
-        college_df.set_index('year',inplace=True)
-        def temp_fuc(x,item_name,item_per):
+            college_df[test + "25"] = None
+            college_df[test + "75"] = None
+        college_df.set_index("year", inplace=True)
+
+        def temp_fuc(x, item_name, item_per):
             for item in x:
-                if item['name']==item_name:
+                if item["name"] == item_name:
                     return item[item_per]
-        for test,test_name in testArray.items():
-            college_df[test+'25']=data.T['score'].apply(temp_fuc,args=(test,'start'))
-            college_df[test+'75']=data.T['score'].apply(temp_fuc,args=(test,'end'))
-            college_df.rename(columns={(test+'25'):test_name+'25%'},inplace=True)
-            college_df.rename(columns={(test+'75'):test_name+'75%'},inplace=True)
-    elif college_info.data_type=='学生组成':
-        data=pd.read_json(dataURLs["students"]+str(college_info.postid))
-        df1=data[['name','value']].rename(columns={'name':'学生类别','value':'数量'}).replace({
-            'uf':lang_dict['data_under_fresh'],
-            'uj':lang_dict['data_under_junior'],
-            'ut':lang_dict['data_under_trans'],
-            'gr':lang_dict['data_under_grad'],
-            'nd':lang_dict['data_no_degree']
-        })
-        tempArray={
-            'wh':lang_dict['data_race_white'],
-            'as':lang_dict['data_race_asian'],
-            'la':lang_dict['data_race_latino'],
-            'pa':lang_dict['data_race_pacific'],
-            'af':lang_dict['data_race_africa'],
-            'nr':lang_dict['data_race_nr'],}
-        df2=pd.DataFrame(columns=['学生种族','数量'])
-        def temp_fuc(row,k):
+
+        for test, test_name in testArray.items():
+            college_df[test + "25"] = data.T["score"].apply(
+                temp_fuc, args=(test, "start")
+            )
+            college_df[test + "75"] = data.T["score"].apply(
+                temp_fuc, args=(test, "end")
+            )
+            college_df.rename(columns={(test + "25"): test_name + "25%"}, inplace=True)
+            college_df.rename(columns={(test + "75"): test_name + "75%"}, inplace=True)
+    elif college_info.data_type == "学生组成":
+        data = pd.read_json(dataURLs["students"] + str(college_info.postid))
+        df1 = (
+            data[["name", "value"]]
+            .rename(columns={"name": "学生类别", "value": "数量"})
+            .replace(
+                {
+                    "uf": lang_dict["data_under_fresh"],
+                    "uj": lang_dict["data_under_junior"],
+                    "ut": lang_dict["data_under_trans"],
+                    "gr": lang_dict["data_under_grad"],
+                    "nd": lang_dict["data_no_degree"],
+                }
+            )
+        )
+        tempArray = {
+            "wh": lang_dict["data_race_white"],
+            "as": lang_dict["data_race_asian"],
+            "la": lang_dict["data_race_latino"],
+            "pa": lang_dict["data_race_pacific"],
+            "af": lang_dict["data_race_africa"],
+            "nr": lang_dict["data_race_nr"],
+        }
+        df2 = pd.DataFrame(columns=["学生种族", "数量"])
+
+        def temp_fuc(row, k):
             for subrow in row:
-                if subrow['name']==k:
-                    return subrow['value']
-        for key,value in tempArray.items():
-            temp=pd.DataFrame({'学生种族':[value],'数量':[data['subs'].apply(temp_fuc,args=([key])).sum()]})
-            df2=pd.concat([df2,temp],ignore_index=True)
-        college_df={str(int(data['year'][0]))+'年学生组成':[df1,df2]}
-    elif college_info.data_type=='学生人数':
-        college_df=pd.read_json(dataURLs["students_number"]+str(college_info.postid))
-        college_df=college_df.rename(columns={'undertotal':'本科生人数','under':'本科留学生人数','underper':'本科留学生占比','gradtotal':'研究生人数','grad':'研究生留学生人数','gradper':'研究生留学生占比'})
-        college_df['year']=college_df['year'].apply(lambda x:x[:-1])
-    elif college_info.data_type=='学费':
-        data=pd.read_json(dataURLs["info"]+str(college_info.postid))
-        college_df=pd.DataFrame()
-        tuition_array={'year':'year','tuition_in_under':'州内本科生学费','tuition_out_under':'外州本科生学费','tuition_in_grad':'州内研究生学费','tuition_out_grad':'外州研究生学费','room':'住宿费'}
-        for key,value in tuition_array.items():
-            college_df[value]=data['tuition'].apply(lambda x: x[key])
-        college_df['year']=college_df['year'].astype(str)
-    elif college_info.data_type=='毕业率':
-        data=pd.read_json(dataURLs["info"]+str(college_info.postid))
-        college_df=pd.DataFrame()
-        college_df['year']=data['graduation'].apply(lambda x:x['year'])
-        college_df['毕业率']=data['graduation'].apply(lambda x:x['graduation_100_under'])
-        college_df['学生保有率']=data['retention'].apply(lambda x:x['retention_under'])
-    elif college_info.data_type=='犯罪率':
-        college_df=pd.read_json(dataURLs["crime"]+str(college_info.postid))
-        college_df=college_df[['year','avg1000']].rename(columns={'avg1000':'每千人学生记过、犯罪率'})
-    return {'college_info':college_info,'question':question,'data':college_df}
-    
+                if subrow["name"] == k:
+                    return subrow["value"]
+
+        for key, value in tempArray.items():
+            temp = pd.DataFrame(
+                {
+                    "学生种族": [value],
+                    "数量": [data["subs"].apply(temp_fuc, args=([key])).sum()],
+                }
+            )
+            df2 = pd.concat([df2, temp], ignore_index=True)
+        college_df = {str(int(data["year"][0])) + "年学生组成": [df1, df2]}
+    elif college_info.data_type == "学生人数":
+        college_df = pd.read_json(
+            dataURLs["students_number"] + str(college_info.postid)
+        )
+        college_df = college_df.rename(
+            columns={
+                "undertotal": "本科生人数",
+                "under": "本科留学生人数",
+                "underper": "本科留学生占比",
+                "gradtotal": "研究生人数",
+                "grad": "研究生留学生人数",
+                "gradper": "研究生留学生占比",
+            }
+        )
+        college_df["year"] = college_df["year"].apply(lambda x: x[:-1])
+    elif college_info.data_type == "学费":
+        data = pd.read_json(dataURLs["info"] + str(college_info.postid))
+        college_df = pd.DataFrame()
+        tuition_array = {
+            "year": "year",
+            "tuition_in_under": "州内本科生学费",
+            "tuition_out_under": "外州本科生学费",
+            "tuition_in_grad": "州内研究生学费",
+            "tuition_out_grad": "外州研究生学费",
+            "room": "住宿费",
+        }
+        for key, value in tuition_array.items():
+            college_df[value] = data["tuition"].apply(lambda x: x[key])
+        college_df["year"] = college_df["year"].astype(str)
+    elif college_info.data_type == "毕业率":
+        data = pd.read_json(dataURLs["info"] + str(college_info.postid))
+        college_df = pd.DataFrame()
+        college_df["year"] = data["graduation"].apply(lambda x: x["year"])
+        college_df["毕业率"] = data["graduation"].apply(
+            lambda x: x["graduation_100_under"]
+        )
+        college_df["学生保有率"] = data["retention"].apply(
+            lambda x: x["retention_under"]
+        )
+    elif college_info.data_type == "犯罪率":
+        college_df = pd.read_json(dataURLs["crime"] + str(college_info.postid))
+        college_df = college_df[["year", "avg1000"]].rename(
+            columns={"avg1000": "每千人学生记过、犯罪率"}
+        )
+    return {"college_info": college_info, "question": question, "data": college_df}
+
+
 ##### Plot College Data ##########
-def plot_college_data(df,data_type):
-    with st.chat_message("assistant",avatar=avatars['assistant']):
-        fig,ax=plt.subplots(figsize=(9,4))
-        if data_type=="排名":
-            fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(9,8))
-            axes[0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            axes[0].plot(df['USNews排名'],'o-')
+def plot_college_data(df, data_type):
+    with st.chat_message("assistant", avatar=avatars["assistant"]):
+        fig, ax = plt.subplots(figsize=(9, 4))
+        if data_type == "排名":
+            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(9, 8))
+            axes[0].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[0].transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            axes[0].plot(df["USNews排名"], "o-")
             axes[0].yaxis.set_major_locator(MaxNLocator(integer=True))
             axes[0].invert_yaxis()
-            axes[0].set_ylabel(lang_dict['data_ranking'])
-            axes[1].text(0.5, 0.5, 'Forward Pathway', transform=axes[1].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            world_ranks=['QS', 'USNews', 'THE',  'ARWU']
+            axes[0].set_ylabel(lang_dict["data_ranking"])
+            axes[1].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[1].transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            world_ranks = ["QS", "USNews", "THE", "ARWU"]
             for world_rank in world_ranks:
-                axes[1].plot(df[world_rank+'世界大学排名'],'o-',label=world_rank+' '+lang_dict['data_world_ranking'])
+                axes[1].plot(
+                    df[world_rank + "世界大学排名"],
+                    "o-",
+                    label=world_rank + " " + lang_dict["data_world_ranking"],
+                )
             axes[1].yaxis.set_major_locator(MaxNLocator(integer=True))
             axes[1].invert_yaxis()
-            axes[1].set_ylabel(lang_dict['data_world_ranking'])
+            axes[1].set_ylabel(lang_dict["data_world_ranking"])
             axes[1].legend()
-        elif data_type=="录取率":
-            ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            ax.plot(df.index,df['男生录取率'],'bo-',label=lang_dict['data_men_adm'])
-            ax.plot(df.index,df['女生录取率'],'ro-',label=lang_dict['data_women_adm'])
-            ax.set_ylabel(lang_dict['data_admission_rate'])
+        elif data_type == "录取率":
+            ax.text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=ax.transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            ax.plot(df.index, df["男生录取率"], "bo-", label=lang_dict["data_men_adm"])
+            ax.plot(
+                df.index, df["女生录取率"], "ro-", label=lang_dict["data_women_adm"]
+            )
+            ax.set_ylabel(lang_dict["data_admission_rate"])
             ax.yaxis.set_major_formatter(PercentFormatter(1))
             plt.legend()
-        elif data_type=="申请录取人数":
-            ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            lns1=ax.plot(df.index,df['录取且入学人数'],'bo-',label=lang_dict['data_enroll_num'])
-            lns2=ax.plot(df.index,df['录取但未入学人数'],'ro-',label=lang_dict['data_defer_num'])
-            ax_twin=ax.twinx()
-            lns3=ax_twin.plot(df.index,df['拒绝人数'],'go-',label=lang_dict['data_reject_num'])
-            ax.set_ylabel(lang_dict['data_enrollment'])
-            ax_twin.set_ylabel(lang_dict['data_reject_num'])
-            lns = lns1+lns2+lns3
+        elif data_type == "申请录取人数":
+            ax.text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=ax.transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            lns1 = ax.plot(
+                df.index,
+                df["录取且入学人数"],
+                "bo-",
+                label=lang_dict["data_enroll_num"],
+            )
+            lns2 = ax.plot(
+                df.index,
+                df["录取但未入学人数"],
+                "ro-",
+                label=lang_dict["data_defer_num"],
+            )
+            ax_twin = ax.twinx()
+            lns3 = ax_twin.plot(
+                df.index, df["拒绝人数"], "go-", label=lang_dict["data_reject_num"]
+            )
+            ax.set_ylabel(lang_dict["data_enrollment"])
+            ax_twin.set_ylabel(lang_dict["data_reject_num"])
+            lns = lns1 + lns2 + lns3
             labs = [l.get_label() for l in lns]
-            plt.legend(lns, labs,loc=0)
-        elif data_type=="成绩要求":
-            fig,axes=plt.subplots(nrows=3,ncols=2,figsize=(9,10))
-            if(df['SAT阅读25%'].isnull().sum()<df['SAT阅读25%'].shape[0]):
-                axes[0,0].fill_between(df.index,df['SAT阅读25%'],df['SAT阅读75%'])
-            axes[0,0].set_ylabel(lang_dict['data_sat_reading'])
-            if(df['SAT数学25%'].isnull().sum()<df['SAT数学25%'].shape[0]):
-                axes[0,1].fill_between(df.index,df['SAT数学25%'],df['SAT数学75%'])
-            axes[0,1].set_ylabel(lang_dict['data_sat_math'])
-            if(df['ACT英语25%'].isnull().sum()<df['ACT英语25%'].shape[0]):
-                axes[1,0].fill_between(df.index,df['ACT英语25%'].dropna(),df['ACT英语75%'].dropna(),color='coral')
-            axes[1,0].set_ylabel(lang_dict['data_act_english'])
-            if(df['ACT数学25%'].isnull().sum()<df['ACT数学25%'].shape[0]):    
-                axes[1,1].fill_between(df.index,df['ACT数学25%'].dropna(),df['ACT数学75%'].dropna(),color='coral')
-            axes[1,1].set_ylabel(lang_dict['data_act_math'])
-            if(df['ACT综合25%'].isnull().sum()<df['ACT综合25%'].shape[0]):
-                axes[2,0].fill_between(df.index,df['ACT综合25%'].dropna(),df['ACT综合75%'].dropna(),color='coral')
-            axes[2,0].set_ylabel(lang_dict['data_act_comp'])
-            axes[2,1].axis('off')
-        elif data_type=='学生组成':
-            df=next(iter(df.values()))
-            fig,axes=plt.subplots(nrows=1,ncols=2,figsize=(9,6))
+            plt.legend(lns, labs, loc=0)
+        elif data_type == "成绩要求":
+            fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(9, 10))
+            if df["SAT阅读25%"].isnull().sum() < df["SAT阅读25%"].shape[0]:
+                axes[0, 0].fill_between(df.index, df["SAT阅读25%"], df["SAT阅读75%"])
+            axes[0, 0].set_ylabel(lang_dict["data_sat_reading"])
+            if df["SAT数学25%"].isnull().sum() < df["SAT数学25%"].shape[0]:
+                axes[0, 1].fill_between(df.index, df["SAT数学25%"], df["SAT数学75%"])
+            axes[0, 1].set_ylabel(lang_dict["data_sat_math"])
+            if df["ACT英语25%"].isnull().sum() < df["ACT英语25%"].shape[0]:
+                axes[1, 0].fill_between(
+                    df.index,
+                    df["ACT英语25%"].dropna(),
+                    df["ACT英语75%"].dropna(),
+                    color="coral",
+                )
+            axes[1, 0].set_ylabel(lang_dict["data_act_english"])
+            if df["ACT数学25%"].isnull().sum() < df["ACT数学25%"].shape[0]:
+                axes[1, 1].fill_between(
+                    df.index,
+                    df["ACT数学25%"].dropna(),
+                    df["ACT数学75%"].dropna(),
+                    color="coral",
+                )
+            axes[1, 1].set_ylabel(lang_dict["data_act_math"])
+            if df["ACT综合25%"].isnull().sum() < df["ACT综合25%"].shape[0]:
+                axes[2, 0].fill_between(
+                    df.index,
+                    df["ACT综合25%"].dropna(),
+                    df["ACT综合75%"].dropna(),
+                    color="coral",
+                )
+            axes[2, 0].set_ylabel(lang_dict["data_act_comp"])
+            axes[2, 1].axis("off")
+        elif data_type == "学生组成":
+            df = next(iter(df.values()))
+            fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(9, 6))
+
             def my_autopct(pct):
-                return ('%.1f%%' % pct) if pct > 5 else ''
-            explode=((df[0]['学生类别']==lang_dict['data_under_fresh'])/6).to_list()
-            axes[0].pie(df[0]['数量'],labels=df[0]['学生类别'],autopct=my_autopct,explode=explode)
-            explode=((df[1]['学生种族']==lang_dict['data_race_nr'])/6).to_list()
-            axes[1].pie(df[1]['数量'],labels=df[1]['学生种族'],explode=explode,autopct=my_autopct)
-        elif data_type=='学生人数':
-            fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(9,8))
-            axes[0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            axes[0].plot(df['year'],df['本科生人数'],'o-',label=lang_dict['data_under_students_num'])
-            axes[0].plot(df['year'],df['研究生人数'],'o-',label=lang_dict['data_grad_students_num'])
-            axes[0].set_ylabel(lang_dict['data_students_num'])
-            axes[0].tick_params(axis='x',rotation=30)
+                return ("%.1f%%" % pct) if pct > 5 else ""
+
+            explode = (
+                (df[0]["学生类别"] == lang_dict["data_under_fresh"]) / 6
+            ).to_list()
+            axes[0].pie(
+                df[0]["数量"],
+                labels=df[0]["学生类别"],
+                autopct=my_autopct,
+                explode=explode,
+            )
+            explode = ((df[1]["学生种族"] == lang_dict["data_race_nr"]) / 6).to_list()
+            axes[1].pie(
+                df[1]["数量"],
+                labels=df[1]["学生种族"],
+                explode=explode,
+                autopct=my_autopct,
+            )
+        elif data_type == "学生人数":
+            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(9, 8))
+            axes[0].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[0].transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            axes[0].plot(
+                df["year"],
+                df["本科生人数"],
+                "o-",
+                label=lang_dict["data_under_students_num"],
+            )
+            axes[0].plot(
+                df["year"],
+                df["研究生人数"],
+                "o-",
+                label=lang_dict["data_grad_students_num"],
+            )
+            axes[0].set_ylabel(lang_dict["data_students_num"])
+            axes[0].tick_params(axis="x", rotation=30)
             axes[0].legend()
-            axes[1].text(0.5, 0.5, 'Forward Pathway', transform=axes[1].transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            axes[1].plot(df['year'],df['本科留学生人数'],'o-',label=lang_dict['data_under_nr_num'])
-            axes[1].plot(df['year'],df['研究生留学生人数'],'o-',label=lang_dict['data_grad_nr_num'])
-            axes[1].set_ylabel(lang_dict['data_international_students_number'])
-            axes[1].tick_params(axis='x',rotation=30)
+            axes[1].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[1].transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            axes[1].plot(
+                df["year"],
+                df["本科留学生人数"],
+                "o-",
+                label=lang_dict["data_under_nr_num"],
+            )
+            axes[1].plot(
+                df["year"],
+                df["研究生留学生人数"],
+                "o-",
+                label=lang_dict["data_grad_nr_num"],
+            )
+            axes[1].set_ylabel(lang_dict["data_international_students_number"])
+            axes[1].tick_params(axis="x", rotation=30)
             axes[1].legend()
             plt.tight_layout()
-        elif data_type=='学费':
-            fig,axes=plt.subplots(nrows=2,ncols=2,figsize=(9,6))
-            axes[0,0].text(0.5, 0.5, 'Forward Pathway', transform=axes[0,0].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[0,0].plot(df['year'],df['州内本科生学费'],'o-',label=lang_dict['data_tuition_in_under'])
-            axes[0,0].plot(df['year'],df['州内研究生学费'],'o-',label=lang_dict['data_tuition_in_grad'])
-            axes[0,0].set_ylabel(lang_dict['data_tuition_fees_in'])
-            axes[0,0].tick_params(axis='x',rotation=30)
-            axes[0,0].legend()
-            axes[0,1].text(0.5, 0.5, 'Forward Pathway', transform=axes[0,1].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[0,1].plot(df['year'],df['外州本科生学费'],'o-',label=lang_dict['data_tuition_out_under'])
-            axes[0,1].plot(df['year'],df['外州研究生学费'],'o-',label=lang_dict['data_tuition_out_grad'])
-            axes[0,1].set_ylabel(lang_dict['data_tuition_fees_out'])
-            axes[0,1].tick_params(axis='x',rotation=30)
-            axes[0,1].legend()
-            axes[1,0].text(0.5, 0.5, 'Forward Pathway', transform=axes[1,0].transAxes,fontsize=20, color='gray', alpha=0.02,ha='center', va='center', rotation=30)
-            axes[1,0].plot(df['year'],df['住宿费'],'o-',label=lang_dict['data_room_board'])
-            axes[1,0].set_ylabel(lang_dict['data_room_board'])
-            axes[1,0].tick_params(axis='x',rotation=30)
-            axes[1,0].legend()
-            axes[1,1].axis('off')
+        elif data_type == "学费":
+            fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(9, 6))
+            axes[0, 0].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[0, 0].transAxes,
+                fontsize=20,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=30,
+            )
+            axes[0, 0].plot(
+                df["year"],
+                df["州内本科生学费"],
+                "o-",
+                label=lang_dict["data_tuition_in_under"],
+            )
+            axes[0, 0].plot(
+                df["year"],
+                df["州内研究生学费"],
+                "o-",
+                label=lang_dict["data_tuition_in_grad"],
+            )
+            axes[0, 0].set_ylabel(lang_dict["data_tuition_fees_in"])
+            axes[0, 0].tick_params(axis="x", rotation=30)
+            axes[0, 0].legend()
+            axes[0, 1].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[0, 1].transAxes,
+                fontsize=20,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=30,
+            )
+            axes[0, 1].plot(
+                df["year"],
+                df["外州本科生学费"],
+                "o-",
+                label=lang_dict["data_tuition_out_under"],
+            )
+            axes[0, 1].plot(
+                df["year"],
+                df["外州研究生学费"],
+                "o-",
+                label=lang_dict["data_tuition_out_grad"],
+            )
+            axes[0, 1].set_ylabel(lang_dict["data_tuition_fees_out"])
+            axes[0, 1].tick_params(axis="x", rotation=30)
+            axes[0, 1].legend()
+            axes[1, 0].text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=axes[1, 0].transAxes,
+                fontsize=20,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=30,
+            )
+            axes[1, 0].plot(
+                df["year"], df["住宿费"], "o-", label=lang_dict["data_room_board"]
+            )
+            axes[1, 0].set_ylabel(lang_dict["data_room_board"])
+            axes[1, 0].tick_params(axis="x", rotation=30)
+            axes[1, 0].legend()
+            axes[1, 1].axis("off")
             plt.tight_layout()
-        elif data_type=='毕业率':
-            ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            ax.plot(df['year'],df['毕业率'],'o-',label=lang_dict['data_graduation_rate'])
-            ax.plot(df['year'],df['学生保有率'],'o-',label=lang_dict['data_retention_rate'])
+        elif data_type == "毕业率":
+            ax.text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=ax.transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            ax.plot(
+                df["year"], df["毕业率"], "o-", label=lang_dict["data_graduation_rate"]
+            )
+            ax.plot(
+                df["year"],
+                df["学生保有率"],
+                "o-",
+                label=lang_dict["data_retention_rate"],
+            )
             ax.yaxis.set_major_formatter(PercentFormatter(1))
             ax.legend()
-        elif data_type=='犯罪率':
-            ax.text(0.5, 0.5, 'Forward Pathway', transform=ax.transAxes,fontsize=50, color='gray', alpha=0.02,ha='center', va='center', rotation=20)
-            ax.plot(df['year'],df['每千人学生记过、犯罪率'],'o-',label=lang_dict['data_crime_rate'])
-            ax.set_ylabel(lang_dict['data_crime_rate'])
+        elif data_type == "犯罪率":
+            ax.text(
+                0.5,
+                0.5,
+                "Forward Pathway",
+                transform=ax.transAxes,
+                fontsize=50,
+                color="gray",
+                alpha=0.02,
+                ha="center",
+                va="center",
+                rotation=20,
+            )
+            ax.plot(
+                df["year"],
+                df["每千人学生记过、犯罪率"],
+                "o-",
+                label=lang_dict["data_crime_rate"],
+            )
+            ax.set_ylabel(lang_dict["data_crime_rate"])
         st.pyplot(fig)
-        
+
+
 def college_data_comments(state):
-    df=state['data']
-    data_type=state['college_info'].data_type
-    college_cname=state['college_info'].cname
-    college_ename=state['college_info'].ename
-    college_url='https://www.forwardpathway.com/'+state['college_info'].postid
-    question=state['question']
-    prompt = ChatPromptTemplate.from_messages([
-        ('system',lang_dict['prompt_comments_system']),
-        ('human',lang_dict['prompt_comments_human'])
-    ])
-    college_data_comments_chain=prompt | llm | StrOutputParser()
-    generation=college_data_comments_chain.stream({
-        'college_cname':college_cname,
-        'college_ename':college_ename,
-        'data_type':data_type,
-        'data':df,
-        'college_url':college_url,
-        'question':question
-    })
-    return {'generation':generation}
-    
+    df = state["data"]
+    data_type = state["college_info"].data_type
+    college_cname = state["college_info"].cname
+    college_ename = state["college_info"].ename
+    college_url = "https://www.forwardpathway.com/" + state["college_info"].postid
+    question = state["question"]
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", lang_dict["prompt_comments_system"]),
+            ("human", lang_dict["prompt_comments_human"]),
+        ]
+    )
+    college_data_comments_chain = prompt | llm | StrOutputParser()
+    generation = college_data_comments_chain.stream(
+        {
+            "college_cname": college_cname,
+            "college_ename": college_ename,
+            "data_type": data_type,
+            "data": df,
+            "college_url": college_url,
+            "question": question,
+        }
+    )
+    return {"generation": generation}
+
+
 def database_router(state):
-    post_id=state["college_info"].postid
-    if state["college_info"].data_type in {
-        "排名",
-        "录取率",
-        "申请录取人数",
-        "成绩要求",
-        "学生组成",
-        "学生人数",
-        "学费",
-        "毕业率",
-        "犯罪率",
-    } and len(post_id)>0:
+    post_id = state["college_info"].postid
+    if (
+        state["college_info"].data_type
+        in {
+            "排名",
+            "录取率",
+            "申请录取人数",
+            "成绩要求",
+            "学生组成",
+            "学生人数",
+            "学费",
+            "毕业率",
+            "犯罪率",
+        }
+        and len(post_id) > 0
+    ):
         return "to_college_data_plot"
     else:
         return "to_retrieve"
 
+
 def database_to_retriever(state):
-    question=state['question']
+    question = state["question"]
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语"),
+            (
+                "system",
+                "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语",
+            ),
             ("human", "{question}"),
         ]
     )
-    chain=prompt | llm | StrOutputParser()
-    new_question=chain.invoke({"question":question})
-    return {"question":new_question}
+    chain = prompt | llm | StrOutputParser()
+    new_question = chain.invoke({"question": question})
+    return {"question": new_question}
+
+
 ######################## Build LangGraph ####################################
 workflow = StateGraph(GraphState)
 
-workflow.add_node('retrieve',retrieve)
-workflow.add_node('database',get_college_info)
-workflow.add_node('generate',generate)
-workflow.add_node('college_data_plot',college_data_plot)
-workflow.add_node('college_data_comments',college_data_comments)
-workflow.add_node('database_to_retriever',database_to_retriever)
+workflow.add_node("retrieve", retrieve)
+workflow.add_node("database", get_college_info)
+workflow.add_node("generate", generate)
+workflow.add_node("college_data_plot", college_data_plot)
+workflow.add_node("college_data_comments", college_data_comments)
+workflow.add_node("database_to_retriever", database_to_retriever)
 
 workflow.set_conditional_entry_point(
     route_question,
-    {
-        "to_retrieve": "retrieve",
-        "to_database":"database"
-    },
+    {"to_retrieve": "retrieve", "to_database": "database"},
 )
 
-workflow.add_edge("retrieve","generate")
-workflow.add_edge("generate",END)
+workflow.add_edge("retrieve", "generate")
+workflow.add_edge("generate", END)
 
 workflow.add_conditional_edges(
     "database",
     database_router,
     {
-        "to_college_data_plot":"college_data_plot",
-        "to_retrieve":"database_to_retriever"
-    }
+        "to_college_data_plot": "college_data_plot",
+        "to_retrieve": "database_to_retriever",
+    },
 )
 
-workflow.add_edge("database_to_retriever","retrieve")
-workflow.add_edge("college_data_plot","college_data_comments")
-workflow.add_edge("college_data_comments",END)
+workflow.add_edge("database_to_retriever", "retrieve")
+workflow.add_edge("college_data_plot", "college_data_comments")
+workflow.add_edge("college_data_comments", END)
 app = workflow.compile()
 
 ######################### Build Streamlit APP ##################################
 with st.sidebar:
-    st.subheader(lang_dict['more'],divider='rainbow')
-    lang_dict['rankings']
-    lang_dict['lxbd']
-    lang_dict['service_under']
-    lang_dict['service_grad']
-    lang_dict['service_emergency']
+    st.subheader(lang_dict["more"], divider="rainbow")
+    lang_dict["rankings"]
+    lang_dict["lxbd"]
+    lang_dict["service_under"]
+    lang_dict["service_grad"]
+    lang_dict["service_emergency"]
     st.divider()
-    st.subheader(lang_dict['service_barcode'])
-    st.image('./logos/WeCom_barcode.png',width=200)
+    st.subheader(lang_dict["service_barcode"])
+    st.image("./logos/WeCom_barcode.png", width=200)
     st.divider()
-    st.markdown(lang_dict['disclaim'])
-st.title(lang_dict['title'])
+    st.markdown(lang_dict["disclaim"])
+st.title(lang_dict["title"])
 
-avatars={'assistant':'./logos/fp_logo.png','user':'❓'}
+avatars = {"assistant": "./logos/fp_logo.png", "user": "❓"}
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": lang_dict['init_content']}]
-if 'input_time' not in st.session_state:
-    st.session_state.input_time=datetime.datetime.now()-datetime.timedelta(seconds=10)
+    st.session_state.messages = [
+        {"role": "assistant", "content": lang_dict["init_content"]}
+    ]
+if "input_time" not in st.session_state:
+    st.session_state.input_time = datetime.datetime.now() - datetime.timedelta(
+        seconds=10
+    )
 
 #################### print messages #############################
 for msg in st.session_state.messages:
-    if msg['role']=='user' or msg['role']=='assistant':
-        with st.chat_message(msg["role"],avatar=avatars[msg['role']]):
+    if msg["role"] == "user" or msg["role"] == "assistant":
+        with st.chat_message(msg["role"], avatar=avatars[msg["role"]]):
             st.write(msg["content"])
-    elif msg['role']=='data':
-        plot_college_data(msg['content'],msg['data_type'])      
-if user_input := st.chat_input(lang_dict['input_box']):
-    if (datetime.datetime.now()-st.session_state.input_time)<datetime.timedelta(seconds=3):
-        st.error(lang_dict['error_too_many_requests'])
+    elif msg["role"] == "data":
+        plot_college_data(msg["content"], msg["data_type"])
+if user_input := st.chat_input(lang_dict["input_box"]):
+    if (datetime.datetime.now() - st.session_state.input_time) < datetime.timedelta(
+        seconds=3
+    ):
+        st.error(lang_dict["error_too_many_requests"])
         st.snow()
     else:
-        st.session_state.input_time=datetime.datetime.now()
+        st.session_state.input_time = datetime.datetime.now()
         st.session_state.messages.append({"role": "user", "content": user_input})
-        with st.chat_message("user",avatar=avatars['user']):
+        with st.chat_message("user", avatar=avatars["user"]):
             st.write(user_input)
-    
-        inputs={'question':user_input,'chat_history':st.session_state.messages[-10:]}
-        placeholder=st.empty()
+
+        inputs = {
+            "question": user_input,
+            "chat_history": st.session_state.messages[-10:],
+        }
+        placeholder = st.empty()
         with placeholder.container():
-            status=st.status(lang_dict['status_wait'])
+            status = st.status(lang_dict["status_wait"])
         for output in app.stream(inputs):
-            for key,response in output.items():
-                if 'generation' in response:
-                    status.update(label=lang_dict['status_generate'])
-                    msg=response['generation']
-                    with st.chat_message("assistant",avatar=avatars['assistant']):
-                        msg=st.write_stream(msg)
-                        st.session_state.messages.append({"role": "assistant", "content": msg})
-                elif 'data' in response:
-                    status.update(label=lang_dict['status_generate'])
-                    data=response['data']
-                    data_type=(response['college_info']).data_type
-                    plot_college_data(data,data_type)
-                    st.session_state.messages.append({"role": "data", "content": data,"data_type":data_type})
-        status.update(label=lang_dict['status_finish'],state="complete")
+            for key, response in output.items():
+                if "generation" in response:
+                    status.update(label=lang_dict["status_generate"])
+                    msg = response["generation"]
+                    with st.chat_message("assistant", avatar=avatars["assistant"]):
+                        msg = st.write_stream(msg)
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": msg}
+                        )
+                elif "data" in response:
+                    status.update(label=lang_dict["status_generate"])
+                    data = response["data"]
+                    data_type = (response["college_info"]).data_type
+                    plot_college_data(data, data_type)
+                    st.session_state.messages.append(
+                        {"role": "data", "content": data, "data_type": data_type}
+                    )
+        status.update(label=lang_dict["status_finish"], state="complete")
         time.sleep(1)
         placeholder.empty()
-    
-    
-
-
-        
