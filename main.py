@@ -9,7 +9,7 @@ import streamlit as st
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
 from matplotlib import font_manager
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 from pydantic import BaseModel, Field
@@ -89,6 +89,8 @@ class GraphState(TypedDict):
     """
 
     question: str
+    router_college_flag: str
+    router_ranking_flag: str
     generation: str
     documents: List[str]
     college_info: College_Info
@@ -96,6 +98,77 @@ class GraphState(TypedDict):
     plot_type: str
     data: pd.DataFrame
     chat_history: list
+
+
+def router_college(state):
+    class CollegeRouter(BaseModel):
+        college: Literal["Yes", "No"] = Field(
+            description="回答是否为某所特定大学相关问题，Yes为某所大学相关问题，No为不相关"
+        )
+
+    structured_llm = llm.with_structured_output(CollegeRouter, method="json_schema")
+    system_message = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题和历史聊天记录，你需要判断用户的问题是否为某所特定大学的相关问题，Yes是相关问题，\
+        No为不与美国大学相关。比如：哈佛大学排名，普林斯顿录取率等等则回答Yes，而美国大学申请、美国留学难不难等等则回答No。"""
+    llm_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_message),
+            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
+        ]
+    )
+    question_router = llm_prompt | structured_llm
+    response = question_router.invoke(
+        {"question": state["question"], "chat_history": state["chat_history"]}
+    )
+    return {"router_college_flag": response.college}
+
+
+def router_college_func(state):
+    if state["router_college_flag"] == "Yes":
+        return "to_database"
+    return "to_router_ranking"
+
+
+def router_ranking(state):
+    # print("---ROUTE QUESTION---")
+    # Data model
+    class RouteQuery(BaseModel):
+        """基于用户的查询词条选择最相关的资料来源"""
+
+        router: Literal["vectorstore", "ranking"] = Field(
+            description="基于用户的问题选择vectrostore或者ranking。"
+        )
+
+    structured_llm_router = llm.with_structured_output(RouteQuery)
+
+    # Prompt
+    system = """
+        你是一位路径选择的专家，负责根据用户的问题及历史聊天记录，从以下两条路径中选择最合适的一条："vectorstore"、"ranking"。
+
+    1. "vectorstore"：包含美国留学的综合资料，例如美国留学申请流程、转学事项等。如果用户的问题涉及美国留学的整体信息或涉及两所及以上大学的信息，请选择此路径。
+
+    2. "ranking"：提供美国大学的排名数据，包括综合排名、学院排名、专业排名等。如果用户的问题是了解一组大学的排名列表，请选择此路径。比如美国大学排名，商科排名等等。
+
+    请根据用户的问题内容和规则做出最合适的路径选择。
+    """
+    route_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system),
+            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
+        ]
+    )
+
+    question_router = route_prompt | structured_llm_router
+    response = question_router.invoke(
+        {"question": state["question"], "chat_history": state["chat_history"]}
+    )
+    return {"router_ranking_flag": response.router}
+
+
+def router_ranking_func(state):
+    if state["router_ranking_flag"] == "vectorstore":
+        return "to_retrieve"
+    elif state["router_ranking_flag"] == "ranking":
+        return "to_ranking"
 
 
 def retrieve(state):
@@ -141,44 +214,6 @@ def generate(state):
     )
 
     return {"documents": documents, "question": question, "generation": generation}
-
-
-def route_question(state):
-    # print("---ROUTE QUESTION---")
-    # Data model
-    class RouteQuery(BaseModel):
-        """基于用户的查询词条选择最相关的资料来源"""
-
-        datasource: Literal["vectorstore", "database"] = Field(
-            ...,
-            description="基于用户的问题选择vectrostore或者database.",
-        )
-
-    structured_llm_router = llm.with_structured_output(RouteQuery)
-
-    # Prompt
-    system = """你是一位选择路径的专家，你需要基于用户的问题以及历史聊天记录选择是使用vectorstore还是database.
-    vectorstore包含了关于总体的在美国留学相关的资料，比如美国大学排名，美国留学申请，美国转学等等.
-    database包含了特定一所大学的相关数据，比如这所大学的排名、录取率、申请人数、录取人数、成绩要求、学生组成、学生人数、学费、住宿费、犯罪率等等.
-    如果用户的问题是美国留学相关但是不针对某一所大学的问题，或者用户需要知道两所或两所以上大学的相关信息，请选择vectorstore，\
-    如果是针对特定一所美国大学且只能是一所大学的问题，请选择database."""
-    route_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system),
-            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
-        ]
-    )
-
-    question_router = route_prompt | structured_llm_router
-    source = question_router.invoke(
-        {"question": state["question"], "chat_history": state["chat_history"]}
-    )
-    if source.datasource == "vectorstore":
-        # print("---ROUTE QUESTION TO RAG---")
-        return "to_retrieve"
-    elif source.datasource == "database":
-        # print("---ROUTE QUESTION TO DATABASE----")
-        return "to_database"
 
 
 def get_college_info(state):
@@ -227,6 +262,28 @@ def get_college_info(state):
         }
     )
     return {"college_info": college_info, "question": question}
+
+
+def database_router_func(state):
+    post_id = state["college_info"].postid
+    if (
+        state["college_info"].data_type
+        in {
+            "排名",
+            "录取率",
+            "申请录取人数",
+            "成绩要求",
+            "学生组成",
+            "学生人数",
+            "学费",
+            "毕业率",
+            "犯罪率",
+        }
+        and len(post_id) > 0
+    ):
+        return "to_college_data_plot"
+    else:
+        return "to_retrieve"
 
 
 def college_data_plot(state):
@@ -759,28 +816,6 @@ def college_data_comments(state):
     return {"generation": generation}
 
 
-def database_router(state):
-    post_id = state["college_info"].postid
-    if (
-        state["college_info"].data_type
-        in {
-            "排名",
-            "录取率",
-            "申请录取人数",
-            "成绩要求",
-            "学生组成",
-            "学生人数",
-            "学费",
-            "毕业率",
-            "犯罪率",
-        }
-        and len(post_id) > 0
-    ):
-        return "to_college_data_plot"
-    else:
-        return "to_retrieve"
-
-
 def database_to_retriever(state):
     question = state["question"]
     prompt = ChatPromptTemplate.from_messages(
@@ -797,27 +832,47 @@ def database_to_retriever(state):
     return {"question": new_question}
 
 
+def ranking(state):
+    return
+
+
 # Build LangGraph
 workflow = StateGraph(GraphState)
 
+workflow.add_node("router_college", router_college)
+workflow.add_node("router_ranking", router_ranking)
 workflow.add_node("retrieve", retrieve)
-workflow.add_node("database", get_college_info)
+workflow.add_node("get_college_info", get_college_info)
 workflow.add_node("generate", generate)
 workflow.add_node("college_data_plot", college_data_plot)
 workflow.add_node("college_data_comments", college_data_comments)
 workflow.add_node("database_to_retriever", database_to_retriever)
+workflow.add_node("ranking", ranking)
 
-workflow.set_conditional_entry_point(
-    route_question,
-    {"to_retrieve": "retrieve", "to_database": "database"},
+workflow.add_edge(START, "router_college")
+workflow.add_conditional_edges(
+    "router_college",
+    router_college_func,
+    {
+        "to_database": "get_college_info",
+        "to_router_ranking": "router_ranking",
+    },
+)
+workflow.add_conditional_edges(
+    "router_ranking",
+    router_ranking_func,
+    {
+        "to_retrieve": "retrieve",
+        "to_ranking": "ranking",
+    },
 )
 
 workflow.add_edge("retrieve", "generate")
 workflow.add_edge("generate", END)
 
 workflow.add_conditional_edges(
-    "database",
-    database_router,
+    "get_college_info",
+    database_router_func,
     {
         "to_college_data_plot": "college_data_plot",
         "to_retrieve": "database_to_retriever",
@@ -827,7 +882,29 @@ workflow.add_conditional_edges(
 workflow.add_edge("database_to_retriever", "retrieve")
 workflow.add_edge("college_data_plot", "college_data_comments")
 workflow.add_edge("college_data_comments", END)
+workflow.add_edge("ranking", END)
 app = workflow.compile()
+
+
+def draw_graph_png():
+    from langchain_core.runnables.graph import (CurveStyle, MermaidDrawMethod,
+                                                NodeStyles)
+
+    img = app.get_graph(xray=1).draw_mermaid_png(
+        curve_style=CurveStyle.BASIS,
+        node_colors=NodeStyles(
+            first="fill:#FDFFB6",
+            last="fill:#FFADAD",
+            default="fill:#CAFFBF,line-height:1",
+        ),
+        draw_method=MermaidDrawMethod.API,
+    )
+    with open("GraphFlow.png", "wb") as png:
+        png.write(img)
+
+
+draw_graph_png()
+
 
 # Build Streamlit APP
 with st.sidebar:
