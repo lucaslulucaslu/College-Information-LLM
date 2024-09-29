@@ -1,7 +1,7 @@
 import datetime
+import logging
 import os
 import time
-from typing import List, Literal, TypedDict
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,11 +12,16 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from matplotlib import font_manager
 from matplotlib.ticker import MaxNLocator, PercentFormatter
-from pydantic import BaseModel, Field
 
 from utilities import languages
 from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
+from utilities.ranking import CollegeRanking
+from utilities.schema import (College_Info, CollegeRouter, GraphState,
+                              RankingType, RouteQuery)
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename="error.log", encoding="utf-8", level=logging.ERROR)
 
 st.set_page_config(
     page_title="Forward Pathway AI Chatbot",
@@ -64,79 +69,29 @@ else:
     plt.rcParams["font.sans-serif"] = prop.get_name()
 
 
-class College_Info(BaseModel):
-    cname: str = Field(description="学校中文全名")
-    ename: str = Field(description="学校英文全名")
-    postid: str = Field(description="学校的postid")
-    unitid: str = Field(description="学校的unitid")
-    data_type: str = Field(
-        description="数据种类，可以是'排名'、'录取率'、'申请录取人数'、'成绩要求'、'学生组成'、'学生人数'、'学费'、'毕业率'、'犯罪率'这几种中的一种，\
-            如果留学生相关则输出'学生人数'，如果涉及住宿费则输出'学费'，如果涉及学生保有率则输出'毕业率'，如果不在以上这些类型中请输出'不是数据'"
-    )
-
-
-class GraphState(TypedDict):
-    """
-    Represents the state of our graph.
-
-    Attributes:
-        question: question
-        generation: LLM generation
-        documents: list of documents
-        college_name: College name
-        data_type: College data type
-        plot_type: College data plot type, can be line plot, bar plot, scatter plot or tree plot
-    """
-
-    question: str
-    router_college_flag: str
-    router_ranking_flag: str
-    generation: str
-    documents: List[str]
-    college_info: College_Info
-    data_type: str
-    plot_type: str
-    data: pd.DataFrame
-    chat_history: list
-
-
-def router_college(state):
-    class CollegeRouter(BaseModel):
-        college: Literal["Yes", "No"] = Field(
-            description="回答是否为某所特定大学相关问题，Yes为某所大学相关问题，No为不相关"
-        )
-
+def router_college(state: GraphState):
     structured_llm = llm.with_structured_output(CollegeRouter, method="json_schema")
-    system_message = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题和历史聊天记录，你需要判断用户的问题是否为某所特定大学的相关问题，Yes是相关问题，\
-        No为不与美国大学相关。比如：哈佛大学排名，普林斯顿录取率等等则回答Yes，而美国大学申请、美国留学难不难等等则回答No。"""
+    system_message = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
+        No为不与美国大学相关。比如：哈佛大学排名，普林斯顿录取率等这类只包含一个学校名称的问题则回答Yes，\
+            而美国大学申请、美国留学难不难、会计专业排名、物理学排名等不包含美国大学名称的问题则回答No。"""
     llm_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_message),
-            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
+            ("human", "用户问题如下：{question}"),
         ]
     )
     question_router = llm_prompt | structured_llm
-    response = question_router.invoke(
-        {"question": state["question"], "chat_history": state["chat_history"]}
-    )
+    response = question_router.invoke({"question": state["question"]})
     return {"router_college_flag": response.college}
 
 
-def router_college_func(state):
+def router_college_func(state: GraphState):
     if state["router_college_flag"] == "Yes":
         return "to_database"
     return "to_router_ranking"
 
 
-def router_ranking(state):
-    # print("---ROUTE QUESTION---")
-    # Data model
-    class RouteQuery(BaseModel):
-        """基于用户的查询词条选择最相关的资料来源"""
-
-        router: Literal["vectorstore", "ranking"] = Field(
-            description="基于用户的问题选择vectrostore或者ranking。"
-        )
+def router_ranking(state: GraphState):
 
     structured_llm_router = llm.with_structured_output(RouteQuery)
 
@@ -164,14 +119,14 @@ def router_ranking(state):
     return {"router_ranking_flag": response.router}
 
 
-def router_ranking_func(state):
+def router_ranking_func(state: GraphState):
     if state["router_ranking_flag"] == "vectorstore":
         return "to_retrieve"
     elif state["router_ranking_flag"] == "ranking":
         return "to_ranking"
 
 
-def retrieve(state):
+def retrieve(state: GraphState):
     # print("---RETRIEVE---")
     vector = TXTKnowledgeBase(
         txt_source_folder_path="lxbd"
@@ -194,7 +149,7 @@ def retrieve(state):
     }
 
 
-def generate(state):
+def generate(state: GraphState):
     # print("---GENERATE---")
     question = state["question"]
     documents = state["documents"]
@@ -216,7 +171,7 @@ def generate(state):
     return {"documents": documents, "question": question, "generation": generation}
 
 
-def get_college_info(state):
+def get_college_info(state: GraphState):
     # print("---COLLEGE NAME---")
 
     college_data = CollegesData()
@@ -264,7 +219,7 @@ def get_college_info(state):
     return {"college_info": college_info, "question": question}
 
 
-def database_router_func(state):
+def database_router_func(state: GraphState):
     post_id = state["college_info"].postid
     if (
         state["college_info"].data_type
@@ -286,7 +241,7 @@ def database_router_func(state):
         return "to_retrieve"
 
 
-def college_data_plot(state):
+def college_data_plot(state: GraphState):
     question = state["question"]
     college_info = state["college_info"]
     dataURLs = {
@@ -789,7 +744,7 @@ def plot_college_data(df, data_type):
         st.pyplot(fig)
 
 
-def college_data_comments(state):
+def college_data_comments(state: GraphState):
     df = state["data"]
     data_type = state["college_info"].data_type
     college_cname = state["college_info"].cname
@@ -816,7 +771,7 @@ def college_data_comments(state):
     return {"generation": generation}
 
 
-def database_to_retriever(state):
+def database_to_retriever(state: GraphState):
     question = state["question"]
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -832,8 +787,95 @@ def database_to_retriever(state):
     return {"question": new_question}
 
 
-def ranking(state):
-    return
+def ranking_data(state: GraphState):
+    question = state["question"]
+    chat_history = state["chat_history"]
+    available_types = CollegeRanking.get_ranking_types()
+
+    structured_llm = llm.with_structured_output(RankingType, method="json_schema")
+    system_message = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，你需要按照以下步骤判断用户的问题是列表中的哪一种排名类型。\
+        1. 如果用户提问的学院或者专业大类在列表的school栏中存在，则输出该列表的这行数据。
+        2. 如果用户提问的专业属于列表中school栏中某一学院下属专业，则输出该列表的这行的数据。
+        2. 如果用户提问的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL。
+        3. 如果用户提问的是美国大学排名，不涉及任何学院或者专业的，则school输出NULL，level输出本科，year输出NULL。"""
+    llm_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_message),
+            (
+                "human",
+                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n可以选择的排名类型有：{available_types}",
+            ),
+        ]
+    )
+    question_router = llm_prompt | structured_llm
+    ranking_type = question_router.invoke(
+        {
+            "question": question,
+            "chat_history": chat_history,
+            "available_types": available_types,
+        }
+    )
+    if ranking_type.school and ranking_type.school != "NULL":
+        ranking_type_str = ranking_type.school + "排名"
+        ranking_year = ranking_type.year
+        ranking_df = CollegeRanking.get_major_ranking(ranking_type)
+    else:
+        ranking_type_str = "美国大学排名"
+        (ranking_year, ranking_df) = CollegeRanking.get_usnews_ranking()
+
+    return {
+        "ranking_df": ranking_df,
+        "ranking_year": ranking_year,
+        "ranking_type": ranking_type_str,
+    }
+
+
+def ranking_output(state: GraphState):
+    ranking_df = state["ranking_df"]
+    ranking_year = state["ranking_year"]
+    ranking_type = state["ranking_type"]
+    question = state["question"]
+    chat_history = state["chat_history"]
+
+    # Create a prompt template for generating the ranking response
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """基于下面的排名数据和用户的问题，生成一个回答，回答要求如下：
+                1. 生成回答时的排名类型请按照提供的排名数据类型为准，只会有学校排名和学院排名，不会细分到专业排名。
+                2. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
+                    同时告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                3. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
+                    同时告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                4. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
+                    同时告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                5. 如无特殊要求的，生成排名表格只输出前10名的数据。
+                """,
+            ),
+            (
+                "human",
+                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
+                    \n\n排名数据如下：{ranking_df}",
+            ),
+        ]
+    )
+
+    # Chain the prompt with the language model and output parser
+    ranking_output_chain = prompt | llm | StrOutputParser()
+
+    # Invoke the chain to generate the ranking response
+    ranking_response = ranking_output_chain.stream(
+        {
+            "question": question,
+            "ranking_year": ranking_year,
+            "ranking_type": ranking_type,
+            "ranking_df": ranking_df,
+            "chat_history": chat_history,
+        }
+    )
+
+    return {"generation": ranking_response}
 
 
 # Build LangGraph
@@ -847,7 +889,8 @@ workflow.add_node("generate", generate)
 workflow.add_node("college_data_plot", college_data_plot)
 workflow.add_node("college_data_comments", college_data_comments)
 workflow.add_node("database_to_retriever", database_to_retriever)
-workflow.add_node("ranking", ranking)
+workflow.add_node("ranking_data", ranking_data)
+workflow.add_node("ranking_output", ranking_output)
 
 workflow.add_edge(START, "router_college")
 workflow.add_conditional_edges(
@@ -863,7 +906,7 @@ workflow.add_conditional_edges(
     router_ranking_func,
     {
         "to_retrieve": "retrieve",
-        "to_ranking": "ranking",
+        "to_ranking": "ranking_data",
     },
 )
 
@@ -882,7 +925,8 @@ workflow.add_conditional_edges(
 workflow.add_edge("database_to_retriever", "retrieve")
 workflow.add_edge("college_data_plot", "college_data_comments")
 workflow.add_edge("college_data_comments", END)
-workflow.add_edge("ranking", END)
+workflow.add_edge("ranking_data", "ranking_output")
+workflow.add_edge("ranking_output", END)
 app = workflow.compile()
 
 
@@ -957,24 +1001,30 @@ if user_input := st.chat_input(lang_dict["input_box"]):
         placeholder = st.empty()
         with placeholder.container():
             status = st.status(lang_dict["status_wait"])
-        for output in app.stream(inputs):
-            for key, response in output.items():
-                if "generation" in response:
-                    status.update(label=lang_dict["status_generate"])
-                    msg = response["generation"]
-                    with st.chat_message("assistant", avatar=avatars["assistant"]):
-                        msg = st.write_stream(msg)
+        try:
+            for output in app.stream(inputs):
+                for key, response in output.items():
+                    if "generation" in response:
+                        status.update(label=lang_dict["status_generate"])
+                        msg = response["generation"]
+                        with st.chat_message("assistant", avatar=avatars["assistant"]):
+                            msg = st.write_stream(msg)
+                            st.session_state.messages.append(
+                                {"role": "assistant", "content": msg}
+                            )
+                    elif "data" in response:
+                        status.update(label=lang_dict["status_generate"])
+                        data = response["data"]
+                        data_type = (response["college_info"]).data_type
+                        plot_college_data(data, data_type)
                         st.session_state.messages.append(
-                            {"role": "assistant", "content": msg}
+                            {"role": "data", "content": data, "data_type": data_type}
                         )
-                elif "data" in response:
-                    status.update(label=lang_dict["status_generate"])
-                    data = response["data"]
-                    data_type = (response["college_info"]).data_type
-                    plot_college_data(data, data_type)
-                    st.session_state.messages.append(
-                        {"role": "data", "content": data, "data_type": data_type}
-                    )
+        except Exception as e:
+            logger.info(user_input)
+            logger.error(e)
+            with st.chat_message("assistant", avatar=avatars["assistant"]):
+                st.write(lang_dict["error"])
         status.update(label=lang_dict["status_finish"], state="complete")
         time.sleep(1)
         placeholder.empty()
