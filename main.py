@@ -968,7 +968,7 @@ def draw_graph_png():
         png.write(img)
 
 
-draw_graph_png()
+# draw_graph_png()
 # Build Streamlit APP
 with st.sidebar:
     st.subheader(lang_dict["more"], divider="rainbow")
