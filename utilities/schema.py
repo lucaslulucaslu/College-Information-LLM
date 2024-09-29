@@ -1,3 +1,5 @@
+"""This module defines the data models schema."""
+
 from typing import List, Literal, Optional, TypedDict
 
 import pandas as pd
@@ -5,6 +7,8 @@ from pydantic import BaseModel, Field
 
 
 class College_Info(BaseModel):
+    """Represents the college information."""
+
     cname: str = Field(description="学校中文全名")
     ename: str = Field(description="学校英文全名")
     postid: str = Field(description="学校的postid")
@@ -16,13 +20,11 @@ class College_Info(BaseModel):
 
 
 class RankingType(BaseModel):
+    """Represents the ranking type."""
+
     school: Optional[str] = Field(description="学院名称、专业大类名称")
     level: Literal["本科", "研究生"] = Field(description="本科、研究生")
     year: Optional[int] = Field(description="排名年份")
-
-
-class RankingTypeRow(BaseModel):
-    row: int
 
 
 class GraphState(TypedDict):
@@ -54,13 +56,15 @@ class GraphState(TypedDict):
 
 
 class CollegeRouter(BaseModel):
+    """基于用户的查询词条选择是否为单所大学相关问题."""
+
     college: Literal["Yes", "No"] = Field(
         description="回答是否为某所特定大学相关问题，Yes为某所大学相关问题，No为不相关"
     )
 
 
 class RouteQuery(BaseModel):
-    """基于用户的查询词条选择最相关的资料来源"""
+    """基于用户的查询词条选择最相关的资料来源，vectorstore或者ranking."""
 
     router: Literal["vectorstore", "ranking"] = Field(
         description="基于用户的问题选择vectrostore或者ranking。"

@@ -1,3 +1,5 @@
+"""Forward Pathway AI Chatbot."""
+
 import datetime
 import logging
 import os
@@ -47,6 +49,7 @@ language_question = ["语言选择：", "Languages:"]
 
 
 def change_language_fuc():
+    """Delete all messages after change the language."""
     if "messages" in st.session_state:
         del st.session_state["messages"]
 
@@ -70,6 +73,7 @@ else:
 
 
 def router_college(state: GraphState):
+    """Route the user's question to the college database or others."""
     structured_llm = llm.with_structured_output(CollegeRouter, method="json_schema")
     system_message = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
         No为不与美国大学相关。比如：哈佛大学排名，普林斯顿录取率等这类只包含一个学校名称的问题则回答Yes，\
@@ -86,14 +90,15 @@ def router_college(state: GraphState):
 
 
 def router_college_func(state: GraphState):
+    """Route the user's question to the college database or others."""
     if state["router_college_flag"] == "Yes":
         return "to_database"
     return "to_router_ranking"
 
 
 def router_ranking(state: GraphState):
-
-    structured_llm_router = llm.with_structured_output(RouteQuery)
+    """Route the user's question to the ranking database or others."""
+    structured_llm_router = llm.with_structured_output(RouteQuery, method="json_schema")
 
     # Prompt
     system = """
@@ -120,6 +125,7 @@ def router_ranking(state: GraphState):
 
 
 def router_ranking_func(state: GraphState):
+    """Route the user's question to the ranking database or others."""
     if state["router_ranking_flag"] == "vectorstore":
         return "to_retrieve"
     elif state["router_ranking_flag"] == "ranking":
@@ -127,6 +133,7 @@ def router_ranking_func(state: GraphState):
 
 
 def retrieve(state: GraphState):
+    """Retrieve the documents from the knowledge base."""
     # print("---RETRIEVE---")
     vector = TXTKnowledgeBase(
         txt_source_folder_path="lxbd"
@@ -150,6 +157,7 @@ def retrieve(state: GraphState):
 
 
 def generate(state: GraphState):
+    """Generate the answer to the user's question."""
     # print("---GENERATE---")
     question = state["question"]
     documents = state["documents"]
@@ -172,6 +180,7 @@ def generate(state: GraphState):
 
 
 def get_college_info(state: GraphState):
+    """Get the college information from the database."""
     # print("---COLLEGE NAME---")
 
     college_data = CollegesData()
@@ -190,7 +199,9 @@ def get_college_info(state: GraphState):
     )
     college_name_chain = prompt | llm | StrOutputParser()
 
-    college_info_structured_output = llm.with_structured_output(College_Info)
+    college_info_structured_output = llm.with_structured_output(
+        College_Info, method="json_schema"
+    )
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -220,6 +231,7 @@ def get_college_info(state: GraphState):
 
 
 def database_router_func(state: GraphState):
+    """Route the user's question to the college database or others."""
     post_id = state["college_info"].postid
     if (
         state["college_info"].data_type
@@ -242,6 +254,7 @@ def database_router_func(state: GraphState):
 
 
 def college_data_plot(state: GraphState):
+    """Get the college data from the database."""
     question = state["question"]
     college_info = state["college_info"]
     dataURLs = {
@@ -411,6 +424,7 @@ def college_data_plot(state: GraphState):
 
 # Plot College Data
 def plot_college_data(df, data_type):
+    """Plot the college data."""
     with st.chat_message("assistant", avatar=avatars["assistant"]):
         fig, ax = plt.subplots(figsize=(9, 4))
         if data_type == "排名":
@@ -745,6 +759,7 @@ def plot_college_data(df, data_type):
 
 
 def college_data_comments(state: GraphState):
+    """Generate the comments for the college data."""
     df = state["data"]
     data_type = state["college_info"].data_type
     college_cname = state["college_info"].cname
@@ -771,7 +786,8 @@ def college_data_comments(state: GraphState):
     return {"generation": generation}
 
 
-def database_to_retriever(state: GraphState):
+def generate_retrieve_question(state: GraphState):
+    """Reroute the user's question from database to the RAG."""
     question = state["question"]
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -788,6 +804,7 @@ def database_to_retriever(state: GraphState):
 
 
 def ranking_data(state: GraphState):
+    """Get the ranking data from the database."""
     question = state["question"]
     chat_history = state["chat_history"]
     available_types = CollegeRanking.get_ranking_types()
@@ -831,6 +848,7 @@ def ranking_data(state: GraphState):
 
 
 def ranking_output(state: GraphState):
+    """Generate the ranking response."""
     ranking_df = state["ranking_df"]
     ranking_year = state["ranking_year"]
     ranking_type = state["ranking_type"]
@@ -843,20 +861,22 @@ def ranking_output(state: GraphState):
             (
                 "system",
                 """基于下面的排名数据和用户的问题，生成一个回答，回答要求如下：
-                1. 生成回答时的排名类型请按照提供的排名数据类型为准，只会有学校排名和学院排名，不会细分到专业排名。
-                2. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
-                    同时告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                3. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
-                    同时告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                4. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
-                    同时告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                5. 如无特殊要求的，生成排名表格只输出前10名的数据。
+                1. 生成的表明表格提供排名，中文名，英文名三栏，
+                2. 如无特殊要求的，生成排名表格只输出前10名的数据。
+                3. 生成回答时的排名类型、排名年份请按照提供的排名数据类型和排名年份为准，只会有美国大学排名和学院排名，不会细分到专业排名。
+                4. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                5. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                6. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
+                    在表格后要告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                \n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
+                    \n\n排名数据如下：{ranking_df}
                 """,
             ),
             (
                 "human",
-                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
-                    \n\n排名数据如下：{ranking_df}",
+                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}",
             ),
         ]
     )
@@ -888,7 +908,7 @@ workflow.add_node("get_college_info", get_college_info)
 workflow.add_node("generate", generate)
 workflow.add_node("college_data_plot", college_data_plot)
 workflow.add_node("college_data_comments", college_data_comments)
-workflow.add_node("database_to_retriever", database_to_retriever)
+workflow.add_node("generate_retrieve_question", generate_retrieve_question)
 workflow.add_node("ranking_data", ranking_data)
 workflow.add_node("ranking_output", ranking_output)
 
@@ -905,7 +925,7 @@ workflow.add_conditional_edges(
     "router_ranking",
     router_ranking_func,
     {
-        "to_retrieve": "retrieve",
+        "to_retrieve": "generate_retrieve_question",
         "to_ranking": "ranking_data",
     },
 )
@@ -918,11 +938,11 @@ workflow.add_conditional_edges(
     database_router_func,
     {
         "to_college_data_plot": "college_data_plot",
-        "to_retrieve": "database_to_retriever",
+        "to_retrieve": "generate_retrieve_question",
     },
 )
 
-workflow.add_edge("database_to_retriever", "retrieve")
+workflow.add_edge("generate_retrieve_question", "retrieve")
 workflow.add_edge("college_data_plot", "college_data_comments")
 workflow.add_edge("college_data_comments", END)
 workflow.add_edge("ranking_data", "ranking_output")
@@ -931,6 +951,7 @@ app = workflow.compile()
 
 
 def draw_graph_png():
+    """Draw the graph of the LangChain."""
     from langchain_core.runnables.graph import (CurveStyle, MermaidDrawMethod,
                                                 NodeStyles)
 
@@ -948,8 +969,6 @@ def draw_graph_png():
 
 
 draw_graph_png()
-
-
 # Build Streamlit APP
 with st.sidebar:
     st.subheader(lang_dict["more"], divider="rainbow")

@@ -1,3 +1,5 @@
+"""This module contains the CollegeRanking class which is used to query the database for college rankings."""
+
 import os
 
 import pandas as pd
@@ -7,11 +9,14 @@ from utilities.schema import RankingType
 
 
 class CollegeRanking:
+    """This class is used to query the database for college rankings."""
+
     def __init__(self):
+        """Initialize the CollegeRanking class."""
         pass
 
     def get_ranking_types():
-        # Connect to the database
+        """Return the ranking types."""
         connection = pymysql.connect(
             db=os.environ["db_name"],
             user=os.environ["db_user"],
@@ -35,7 +40,7 @@ class CollegeRanking:
         return ranking_types_df
 
     def get_usnews_ranking():
-        # Connect to the database
+        """Return the US News ranking."""
         connection = pymysql.connect(
             db=os.environ["db_name"],
             user=os.environ["db_user"],
@@ -52,12 +57,12 @@ class CollegeRanking:
             ranking_year = row["ranking"]
 
             cursor.execute(
-                """SELECT t1.rank, t2.cname, t2.name as ename 
+                """SELECT t1.rank, t2.cname, t2.name as ename
                    FROM fp_ranking.us_rankings t1
                    JOIN fp_ranking.colleges t2 ON t2.postid = t1.postid
-                   WHERE t1.year = (SELECT MAX(year) FROM fp_ranking.us_rankings WHERE type = 1) 
+                   WHERE t1.year = (SELECT MAX(year) FROM fp_ranking.us_rankings WHERE type = 1)
                    AND t1.type = 1
-                   ORDER BY t1.rank ASC 
+                   ORDER BY t1.rank ASC
                    LIMIT 50"""
             )
             usnews_ranking = cursor.fetchall()
@@ -68,7 +73,7 @@ class CollegeRanking:
         return (ranking_year, usnews_ranking_df)
 
     def get_major_ranking(ranking_type: RankingType):
-        # Connect to the database
+        """Return the major ranking."""
         connection = pymysql.connect(
             db=os.environ["db_name"],
             user=os.environ["db_user"],
