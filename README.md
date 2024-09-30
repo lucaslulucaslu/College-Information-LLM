@@ -24,14 +24,15 @@ Starting from the start, we input our question, which is then categorized into o
           The question then moves to the "college_data_plot" node, which retrieves and plots the data. Plotting in Python is straightforward, so this step is not elaborated here. Next, it proceeds to the "college_data_comments" node, where the LLM provides comments on the plotted data and adds any additional information if needed. Finally, the process reaches the end.
       - Non-Plottable Data:
         If the data is not plottable, the question is sent to the "generate_retrieve_question" node, where it is rewritten and forwarded to the "retrieve" node for further processing. This will be combined with RAG in the next section.
-- General Questions:
-  - For non-data-related questions, or questions that are not suitable for plotting, the process retrieves our knowledge base from a vector store by querying the question. Both the question and the retrieved documents are then sent to the final "generate" node, where the LLM formulates an answer. This Retrieval-Augmented Generation (RAG) procedure, supported by relevant documents, ensures that the answer is more accurate and reliable. Finally, the process reaches the end.
 - Ranking-Related Questions:
   - If the question is related to college rankings, it proceeds to the "router_ranking" node, which determines whether the question should be routed to the "ranking_data" node or the "retrieve" node.
       - Ranking Data:
           The question then moves to the "ranking_data" node, which retrieves the relevant ranking data. Next, it proceeds to the "ranking_output" node, where the LLM generates a response based on the ranking data. Finally, the process reaches the end.
       - Retrieve:
           If the question is not directly related to ranking data, it is sent to the "generate_retrieve_question" node, where it is rewritten and forwarded to the "retrieve" node for further processing.
+- General Questions:
+  - For non-data-related questions, or questions that are not suitable for plotting, the process retrieves our knowledge base from a vector store by querying the question. Both the question and the retrieved documents are then sent to the final "generate" node, where the LLM formulates an answer. This Retrieval-Augmented Generation (RAG) procedure, supported by relevant documents, ensures that the answer is more accurate and reliable. Finally, the process reaches the end.
+
 
 This architecture achieves remarkable results because each node in the flow chart asks very specific questions, allowing the LLM to provide accurate answers at each step. Consequently, we can expect a much better final answer compared to using pure LLMs alone.
 
