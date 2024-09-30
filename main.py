@@ -813,7 +813,7 @@ def ranking_data(state: GraphState):
     system_message = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，你需要按照以下步骤判断用户的问题是列表中的哪一种排名类型。\
         1. 如果用户提问的学院或者专业大类在列表的school栏中存在，则输出该列表的这行数据。
         2. 如果用户提问的专业属于列表中school栏中某一学院下属专业，则输出该列表的这行的数据。
-        2. 如果用户提问的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL。
+        2. 如果用户提问的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL，level输出本科，year输出NULL。
         3. 如果用户提问的是美国大学排名，不涉及任何学院或者专业的，则school输出NULL，level输出本科，year输出NULL。"""
     llm_prompt = ChatPromptTemplate.from_messages(
         [
@@ -833,7 +833,7 @@ def ranking_data(state: GraphState):
         }
     )
     if ranking_type.school and ranking_type.school != "NULL":
-        ranking_type_str = ranking_type.school + "排名"
+        ranking_type_str = ranking_type.school + ranking_type.level + "排名"
         ranking_year = ranking_type.year
         ranking_df = CollegeRanking.get_major_ranking(ranking_type)
     else:
