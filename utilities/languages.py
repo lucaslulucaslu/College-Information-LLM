@@ -1,3 +1,4 @@
+"""This file contains the language dictionaries for the chatbot."""
 cn_dict = {
     "prompt_retriever": "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询句子，句子尽量包含所有细节",
     "prompt_document": """你是美国续航教育的问答小助手，基于之前的聊天记录，并尽量使用下面提供的美国续航教育资料库内容生成问题的答案，\
@@ -8,6 +9,19 @@ cn_dict = {
             数据来源url：{college_url}，请给出一个可以点击的正确链接地址，链接显示名为该大学名称。\
                 如果数据以及讨论没有很好的回答用户的问题，请进行必要的补充，用户原始问题如下：{question}",
     "prompt_comments_human": "大学名称：{college_cname}，数据类型：{data_type}，具体数据如下：\n\n{data}",
+    "prompt_ranking_system": """基于下面的排名数据和用户的问题，生成一个回答，回答要求如下：
+                1. 生成的表明表格提供排名，中文名，英文名三栏，
+                2. 如无特殊要求的，生成排名表格只输出前10名的数据。
+                3. 生成回答时的排名类型、排名年份请按照提供的排名数据类型和排名年份为准，只会有美国大学排名和学院排名，不会细分到专业排名。
+                4. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                5. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                6. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
+                    在表格后要告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
+                \n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
+                    \n\n排名数据如下：{ranking_df}""",
+    "prompt_ranking_human": "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}",
     "title": "💬 美国续航教育AI小助手",
     "init_content": "这里是美国续航教育AI小助手，请问有什么可以帮您的吗？",
     "input_box": "试试：哈佛大学的录取率是多少？",
@@ -77,6 +91,24 @@ en_dict = {
             retention rate or graduation rate and numbers are below 1, you need to convert the number to percentage number automatically, \
                 data source url: {college_url}，please cite a clickable link at the end of comments""",
     "prompt_comments_human": "college name: {college_ename}，data type: {data_type}，detailed data:\n\n{data}",
+    "prompt_ranking_system": """Based on the following ranking data and the user's question, \
+                    generate a response with the following requirements:
+                1. The generated table should provide two columns: Rank, and English Name.
+                2. Unless otherwise specified, the generated ranking table should only output the top 10 entries.
+                3. When generating the response, the ranking type and ranking year should be based on the provided \
+                    ranking data type and ranking year. Only US university/college rankings and school rankings will be provided, \
+                        not detailed to specific majors.
+                4. If the provided ranking data type is US university rankings, generate a US university ranking table.\
+                    After the table, inform the user that for detailed category rankings, they should refer to the \
+                        Forward Pathway US university ranking page: https://www.forwardpathway.us/ranking.
+                5. If the provided ranking data type is college/school rankings, and the user's question is about major rankings, \
+                    generate a college/school ranking table. After the table, inform the user that for detailed category rankings, \
+                        they should refer to the Forward Pathway US university ranking page: https://www.forwardpathway.us/ranking.
+                6. If the provided ranking data type is college/school rankings, and the user's question is also about college rankings, \
+                    generate a college ranking table. After the table, inform the user that for other category rankings, \
+                        they should refer to the Forward Pathway US university ranking page: https://www.forwardpathway.us/ranking.
+                \n\nRanking Year: {ranking_year}\n\nRanking Type: {ranking_type}\n\nRanking Data: {ranking_df}""",
+    "prompt_ranking_human": "User question: {question}\n\nChat history: {chat_history}",
     "title": "💬 Forward Pathway AI ChatBot",
     "init_content": "How can I help you?",
     "input_box": "Try: What's UCLA's rankings?",

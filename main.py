@@ -858,26 +858,8 @@ def ranking_output(state: GraphState):
     # Create a prompt template for generating the ranking response
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """基于下面的排名数据和用户的问题，生成一个回答，回答要求如下：
-                1. 生成的表明表格提供排名，中文名，英文名三栏，
-                2. 如无特殊要求的，生成排名表格只输出前10名的数据。
-                3. 生成回答时的排名类型、排名年份请按照提供的排名数据类型和排名年份为准，只会有美国大学排名和学院排名，不会细分到专业排名。
-                4. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
-                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                5. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
-                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                6. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
-                    在表格后要告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面：https://www.forwardpathway.com/ranking。
-                \n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
-                    \n\n排名数据如下：{ranking_df}
-                """,
-            ),
-            (
-                "human",
-                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}",
-            ),
+            ("system", lang_dict["prompt_ranking_system"]),
+            ("human", lang_dict["prompt_ranking_human"]),
         ]
     )
 
