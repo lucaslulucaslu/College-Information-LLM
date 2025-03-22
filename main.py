@@ -8,9 +8,6 @@ import time
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from matplotlib import font_manager
 from matplotlib.ticker import MaxNLocator, PercentFormatter
@@ -19,8 +16,14 @@ from utilities import languages
 from utilities.colleges import CollegesData
 from utilities.knowledgebase import TXTKnowledgeBase
 from utilities.ranking import CollegeRanking
-from utilities.schema import (College_Info, CollegeRouter, GraphState,
-                              RankingType, RouteQuery)
+from utilities.schema import (
+    College_Info,
+    CollegeRouter,
+    GraphState,
+    RankingType,
+    RouteQuery,
+)
+from utilities.llm_wrapper import llm_wrapper, llm_wrapper_streaming
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="error.log", encoding="utf-8", level=logging.ERROR)
@@ -39,8 +42,6 @@ os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 SEARCH_DOCS_NUM = 4
 SEARCH_COLLEGES_NUM = 2
 
-# Choose LLM Model
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 # choose language
 lang_index = "lang" in st.query_params and st.query_params["lang"].upper() == "EN"
@@ -74,18 +75,13 @@ else:
 
 def router_college(state: GraphState):
     """Route the user's question to the college database or others."""
-    structured_llm = llm.with_structured_output(CollegeRouter, method="json_schema")
-    system_message = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
-        No为不与美国大学相关。比如：哈佛大学排名，普林斯顿录取率等这类只包含一个学校名称的问题则回答Yes，\
-            而美国大学申请、美国留学难不难、会计专业排名、物理学排名等不包含美国大学名称的问题则回答No。"""
-    llm_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_message),
-            ("human", "用户问题如下：{question}"),
-        ]
-    )
-    question_router = llm_prompt | structured_llm
-    response = question_router.invoke({"question": state["question"]})
+    system_prompt = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
+        No为不与特定某所美国大学相关。比如：哈佛大学排名，普林斯顿录取率等这类只包含一个学校名称的问题则回答Yes，\
+            而美国大学申请、美国留学难不难、会计专业排名、物理学排名等不包含特定某所美国大学名称的问题则回答No。"""
+    user_prompt = f"用户问题如下：{state["question"]}"
+    response = llm_wrapper(
+        system_prompt, user_prompt, response_format=CollegeRouter
+    ).parsed
     return {"router_college_flag": response.college}
 
 
@@ -98,10 +94,7 @@ def router_college_func(state: GraphState):
 
 def router_ranking(state: GraphState):
     """Route the user's question to the ranking database or others."""
-    structured_llm_router = llm.with_structured_output(RouteQuery, method="json_schema")
-
-    # Prompt
-    system = """
+    system_prompt = """
         你是一位路径选择的专家，负责根据用户的问题及历史聊天记录，从以下两条路径中选择最合适的一条："vectorstore"、"ranking"。
 
     1. "vectorstore"：包含美国留学的综合资料，例如美国留学申请流程、转学事项等。如果用户的问题涉及美国留学的整体信息或涉及两所及以上大学的信息，请选择此路径。
@@ -110,17 +103,10 @@ def router_ranking(state: GraphState):
 
     请根据用户的问题内容和规则做出最合适的路径选择。
     """
-    route_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system),
-            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
-        ]
-    )
-
-    question_router = route_prompt | structured_llm_router
-    response = question_router.invoke(
-        {"question": state["question"], "chat_history": state["chat_history"]}
-    )
+    user_prompt = f"用户问题如下：{state["question"]}\n\n历史聊天记录如下：{state["chat_history"]}"
+    response = llm_wrapper(
+        system_prompt, user_prompt, response_format=RouteQuery
+    ).parsed
     return {"router_ranking_flag": response.router}
 
 
@@ -158,25 +144,14 @@ def retrieve(state: GraphState):
 
 def generate(state: GraphState):
     """Generate the answer to the user's question."""
-    # print("---GENERATE---")
-    question = state["question"]
     documents = state["documents"]
-    # Prompt
-    prompt = ChatPromptTemplate.from_messages(
-        [("system", lang_dict["prompt_document"]), ("human", "{question}")]
+    system_prompt = lang_dict["prompt_document"].format(
+        context=documents, chat_history=state["chat_history"]
     )
+    user_prompt = state["question"]
+    response = llm_wrapper_streaming(system_prompt, user_prompt)
 
-    rag_chain = prompt | llm | StrOutputParser()
-    # RAG generation
-    generation = rag_chain.stream(
-        {
-            "context": documents,
-            "question": question,
-            "chat_history": state["chat_history"],
-        }
-    )
-
-    return {"documents": documents, "question": question, "generation": generation}
+    return {"generation": response}
 
 
 def get_college_info(state: GraphState):
@@ -188,46 +163,20 @@ def get_college_info(state: GraphState):
     college_retriever = college_vector.as_retriever(
         search_kwargs={"k": SEARCH_COLLEGES_NUM}
     )
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "你是一位了解美国高等院校的专家，你需要根据用户的问题及历史聊天记录提取出一所美国高等院校的全名，包括中文名和英文名，输出格式为'中文全名（英文全名）'",
-            ),
-            ("human", "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}"),
-        ]
-    )
-    college_name_chain = prompt | llm | StrOutputParser()
+    system_prompt = "你是一位了解美国高等院校的专家，你需要根据用户的问题及历史聊天记录提取出一所美国高等院校的全名，包括中文名和英文名，输出格式为'中文全名（英文全名）'"
+    user_prompt = f"用户问题如下：{state["question"]}\n\n历史聊天记录如下：{state["chat_history"]}"
+    college_name = llm_wrapper(system_prompt, user_prompt).text
+    college_context = college_retriever.invoke(college_name)
 
-    college_info_structured_output = llm.with_structured_output(
-        College_Info, method="json_schema"
+    system_prompt = (
+        "基于下面学校信息内容及用户的问题和历史聊天记录，按照格式输出学校信息回答"
     )
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "基于下面学校信息内容及用户的问题和历史聊天记录，按照格式输出学校信息回答",
-            ),
-            (
-                "human",
-                "用户问题如下：{question}\n\n学校信息内容如下：{context}\n\n历史聊天记录如下：{chat_history}",
-            ),
-        ]
-    )
-    college_info_chain = prompt | college_info_structured_output
+    user_prompt = f"用户问题如下：{state["question"]}\n\n学校信息内容如下：{college_context}\n\n历史聊天记录如下：{state["chat_history"]}"
+    respone = llm_wrapper(
+        system_prompt, user_prompt, response_format=College_Info
+    ).parsed
 
-    question = state["question"]
-    college_name = college_name_chain.invoke(
-        {"question": question, "chat_history": state["chat_history"]}
-    )
-    college_info = college_info_chain.invoke(
-        {
-            "question": question,
-            "context": college_retriever.invoke(college_name),
-            "chat_history": state["chat_history"],
-        }
-    )
-    return {"college_info": college_info, "question": question}
+    return {"college_info": respone}
 
 
 def database_router_func(state: GraphState):
@@ -766,41 +715,28 @@ def college_data_comments(state: GraphState):
     college_ename = state["college_info"].ename
     college_url = "https://www.forwardpathway.com/" + state["college_info"].postid
     question = state["question"]
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", lang_dict["prompt_comments_system"]),
-            ("human", lang_dict["prompt_comments_human"]),
-        ]
+    system_prompt = lang_dict["prompt_comments_system"].format(
+        college_url=college_url, question=question
     )
-    college_data_comments_chain = prompt | llm | StrOutputParser()
-    generation = college_data_comments_chain.stream(
-        {
-            "college_cname": college_cname,
-            "college_ename": college_ename,
-            "data_type": data_type,
-            "data": df,
-            "college_url": college_url,
-            "question": question,
-        }
+    user_prompt = lang_dict["prompt_comments_human"].format(
+        college_cname=college_cname,
+        college_ename=college_ename,
+        data_type=data_type,
+        data=df,
     )
-    return {"generation": generation}
+    response = llm_wrapper_streaming(system_prompt, user_prompt)
+    return {"generation": response}
 
 
 def generate_retrieve_question(state: GraphState):
     """Reroute the user's question from database to the RAG."""
     question = state["question"]
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语",
-            ),
-            ("human", "{question}"),
-        ]
+    system_prompt = (
+        "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语。"
     )
-    chain = prompt | llm | StrOutputParser()
-    new_question = chain.invoke({"question": question})
-    return {"question": new_question}
+    user_prompt = f"用户问题如下：{question}"
+    response = llm_wrapper(system_prompt, user_prompt).text
+    return {"question": response}
 
 
 def ranking_data(state: GraphState):
@@ -809,29 +745,15 @@ def ranking_data(state: GraphState):
     chat_history = state["chat_history"]
     available_types = CollegeRanking.get_ranking_types()
 
-    structured_llm = llm.with_structured_output(RankingType, method="json_schema")
-    system_message = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，你需要按照以下步骤判断用户的问题是列表中的哪一种排名类型。\
+    system_prompt = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，你需要按照以下步骤判断用户的问题是列表中的哪一种排名类型。\
         1. 如果用户提问的学院或者专业大类在列表的school栏中存在，则输出该列表的这行数据。
         2. 如果用户提问的专业属于列表中school栏中某一学院下属专业，则输出该列表的这行的数据。
         2. 如果用户提问的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL，level输出本科，year输出NULL。
         3. 如果用户提问的是美国大学排名，不涉及任何学院或者专业的，则school输出NULL，level输出本科，year输出NULL。"""
-    llm_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_message),
-            (
-                "human",
-                "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n可以选择的排名类型有：{available_types}",
-            ),
-        ]
-    )
-    question_router = llm_prompt | structured_llm
-    ranking_type = question_router.invoke(
-        {
-            "question": question,
-            "chat_history": chat_history,
-            "available_types": available_types,
-        }
-    )
+    user_prompt = f"用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n可以选择的排名类型有：{available_types}"
+    ranking_type = llm_wrapper(
+        system_prompt, user_prompt, response_format=RankingType
+    ).parsed
     if ranking_type.school and ranking_type.school != "NULL":
         ranking_type_str = ranking_type.school + ranking_type.level + "排名"
         ranking_year = ranking_type.year
@@ -855,29 +777,15 @@ def ranking_output(state: GraphState):
     question = state["question"]
     chat_history = state["chat_history"]
 
+    system_prompt = lang_dict["prompt_ranking_system"].format(
+        ranking_year=ranking_year, ranking_type=ranking_type, ranking_df=ranking_df
+    )
+    user_prompt = lang_dict["prompt_ranking_human"].format(
+        question=question, chat_history=chat_history
+    )
     # Create a prompt template for generating the ranking response
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", lang_dict["prompt_ranking_system"]),
-            ("human", lang_dict["prompt_ranking_human"]),
-        ]
-    )
-
-    # Chain the prompt with the language model and output parser
-    ranking_output_chain = prompt | llm | StrOutputParser()
-
-    # Invoke the chain to generate the ranking response
-    ranking_response = ranking_output_chain.stream(
-        {
-            "question": question,
-            "ranking_year": ranking_year,
-            "ranking_type": ranking_type,
-            "ranking_df": ranking_df,
-            "chat_history": chat_history,
-        }
-    )
-
-    return {"generation": ranking_response}
+    response = llm_wrapper_streaming(system_prompt, user_prompt)
+    return {"generation": response}
 
 
 # Build LangGraph
@@ -934,8 +842,7 @@ app = workflow.compile()
 
 def draw_graph_png():
     """Draw the graph of the LangChain."""
-    from langchain_core.runnables.graph import (CurveStyle, MermaidDrawMethod,
-                                                NodeStyles)
+    from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
 
     img = app.get_graph(xray=1).draw_mermaid_png(
         curve_style=CurveStyle.BASIS,
