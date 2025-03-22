@@ -5,3 +5,5 @@ lxbd/
 lxsq/
 KnowledgeBase/
 vector/
+.env
+.venv
