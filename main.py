@@ -24,6 +24,8 @@ from utilities.schema import (
     RouteQuery,
 )
 from utilities.llm_wrapper import llm_wrapper, llm_wrapper_streaming
+from langsmith import traceable
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename="error.log", encoding="utf-8", level=logging.ERROR)
@@ -72,7 +74,7 @@ else:
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = prop.get_name()
 
-
+@traceable
 def router_college(state: GraphState):
     """Route the user's question to the college database or others."""
     system_prompt = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
@@ -91,7 +93,7 @@ def router_college_func(state: GraphState):
         return "to_database"
     return "to_router_ranking"
 
-
+@traceable
 def router_ranking(state: GraphState):
     """Route the user's question to the ranking database or others."""
     system_prompt = """
@@ -117,7 +119,7 @@ def router_ranking_func(state: GraphState):
     elif state["router_ranking_flag"] == "ranking":
         return "to_ranking"
 
-
+@traceable
 def retrieve(state: GraphState):
     """Retrieve the documents from the knowledge base."""
     # print("---RETRIEVE---")
@@ -141,7 +143,7 @@ def retrieve(state: GraphState):
         "chat_history": state["chat_history"],
     }
 
-
+@traceable
 def generate(state: GraphState):
     """Generate the answer to the user's question."""
     documents = state["documents"]
@@ -153,7 +155,7 @@ def generate(state: GraphState):
 
     return {"generation": response}
 
-
+@traceable
 def get_college_info(state: GraphState):
     """Get the college information from the database."""
     # print("---COLLEGE NAME---")
@@ -201,7 +203,7 @@ def database_router_func(state: GraphState):
     else:
         return "to_retrieve"
 
-
+@traceable
 def college_data_plot(state: GraphState):
     """Get the college data from the database."""
     question = state["question"]
@@ -706,7 +708,7 @@ def plot_college_data(df, data_type):
             ax.set_ylabel(lang_dict["data_crime_rate"])
         st.pyplot(fig)
 
-
+@traceable
 def college_data_comments(state: GraphState):
     """Generate the comments for the college data."""
     df = state["data"]
@@ -727,7 +729,7 @@ def college_data_comments(state: GraphState):
     response = llm_wrapper_streaming(system_prompt, user_prompt)
     return {"generation": response}
 
-
+@traceable
 def generate_retrieve_question(state: GraphState):
     """Reroute the user's question from database to the RAG."""
     question = state["question"]
@@ -738,18 +740,19 @@ def generate_retrieve_question(state: GraphState):
     response = llm_wrapper(system_prompt, user_prompt).text
     return {"question": response}
 
-
+@traceable
 def ranking_data(state: GraphState):
     """Get the ranking data from the database."""
     question = state["question"]
     chat_history = state["chat_history"]
     available_types = CollegeRanking.get_ranking_types()
 
-    system_prompt = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，你需要按照以下步骤判断用户的问题是列表中的哪一种排名类型。\
-        1. 如果用户提问的学院或者专业大类在列表的school栏中存在，则输出该列表的这行数据。
-        2. 如果用户提问的专业属于列表中school栏中某一学院下属专业，则输出该列表的这行的数据。
-        2. 如果用户提问的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL，level输出本科，year输出NULL。
-        3. 如果用户提问的是美国大学排名，不涉及任何学院或者专业的，则school输出NULL，level输出本科，year输出NULL。"""
+    system_prompt = """你是一名熟悉美国大学排名的专家，下面将给出用户的一个问题和历史聊天记录，结合用户问题和历史聊天记录，了解用户问题的真实意图。\
+        你需要按照以下步骤判断用户问题的意图是列表中的哪一种排名类型。\
+        1. 如果用户问题的意图的学院或者专业大类在列表的school栏中存在，则输出该列表的这行数据。
+        2. 如果用户问题的意图的专业属于列表中school栏中某一学院下属专业，则输出该列表的这行的数据。
+        2. 如果用户问题的意图的学院或者专业大类在列表的school栏中不存在，且专业也不属于school栏下属专业的，则school输出NULL，level输出本科，year输出NULL。
+        3. 如果用户问题的意图是美国大学排名，不涉及任何学院或者专业的，则school输出NULL，level输出本科，year输出NULL。"""
     user_prompt = f"用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}\n\n可以选择的排名类型有：{available_types}"
     ranking_type = llm_wrapper(
         system_prompt, user_prompt, response_format=RankingType
@@ -768,7 +771,7 @@ def ranking_data(state: GraphState):
         "ranking_type": ranking_type_str,
     }
 
-
+@traceable
 def ranking_output(state: GraphState):
     """Generate the ranking response."""
     ranking_df = state["ranking_df"]
