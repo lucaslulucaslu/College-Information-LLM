@@ -2,7 +2,6 @@
 
 import datetime
 import logging
-import os
 import time
 
 import matplotlib.pyplot as plt
@@ -37,9 +36,6 @@ st.set_page_config(
         "About": "APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用"
     },
 )
-
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "chat.forwardpathway.com"
 
 SEARCH_DOCS_NUM = 4
 SEARCH_COLLEGES_NUM = 2
