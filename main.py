@@ -24,7 +24,7 @@ from utilities.schema import (
     RouteQuery,
 )
 from utilities.llm_wrapper import llm_wrapper, llm_wrapper_streaming
-from langsmith import traceable
+from langfuse.decorators import observe
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,8 @@ else:
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = prop.get_name()
 
-@traceable
+
+@observe
 def router_college(state: GraphState):
     """Route the user's question to the college database or others."""
     system_prompt = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
@@ -93,7 +94,8 @@ def router_college_func(state: GraphState):
         return "to_database"
     return "to_router_ranking"
 
-@traceable
+
+@observe
 def router_ranking(state: GraphState):
     """Route the user's question to the ranking database or others."""
     system_prompt = """
@@ -119,7 +121,8 @@ def router_ranking_func(state: GraphState):
     elif state["router_ranking_flag"] == "ranking":
         return "to_ranking"
 
-@traceable
+
+@observe
 def retrieve(state: GraphState):
     """Retrieve the documents from the knowledge base."""
     # print("---RETRIEVE---")
@@ -143,7 +146,8 @@ def retrieve(state: GraphState):
         "chat_history": state["chat_history"],
     }
 
-@traceable
+
+@observe
 def generate(state: GraphState):
     """Generate the answer to the user's question."""
     documents = state["documents"]
@@ -155,7 +159,8 @@ def generate(state: GraphState):
 
     return {"generation": response}
 
-@traceable
+
+@observe
 def get_college_info(state: GraphState):
     """Get the college information from the database."""
     # print("---COLLEGE NAME---")
@@ -203,7 +208,8 @@ def database_router_func(state: GraphState):
     else:
         return "to_retrieve"
 
-@traceable
+
+@observe
 def college_data_plot(state: GraphState):
     """Get the college data from the database."""
     question = state["question"]
@@ -708,7 +714,8 @@ def plot_college_data(df, data_type):
             ax.set_ylabel(lang_dict["data_crime_rate"])
         st.pyplot(fig)
 
-@traceable
+
+@observe
 def college_data_comments(state: GraphState):
     """Generate the comments for the college data."""
     df = state["data"]
@@ -729,18 +736,17 @@ def college_data_comments(state: GraphState):
     response = llm_wrapper_streaming(system_prompt, user_prompt)
     return {"generation": response}
 
-@traceable
+
+@observe
 def generate_retrieve_question(state: GraphState):
     """Reroute the user's question from database to the RAG."""
-    question = state["question"]
-    system_prompt = (
-        "基于用户的问题，重新生成一个可以更好查询vector store以取得相关内容文章的短语。"
-    )
-    user_prompt = f"用户问题如下：{question}"
+    system_prompt = "基于用户的问题和历史聊天记录，重新生成一个可以更好查询vector store以取得相关内容文章的短语。注意：最终只输出一个你认为最合适的搜索短语。"
+    user_prompt = f"用户问题如下：{state["question"]}，\n\n历史聊天记录如下：{state["chat_history"]}"
     response = llm_wrapper(system_prompt, user_prompt).text
     return {"question": response}
 
-@traceable
+
+@observe
 def ranking_data(state: GraphState):
     """Get the ranking data from the database."""
     question = state["question"]
@@ -771,7 +777,8 @@ def ranking_data(state: GraphState):
         "ranking_type": ranking_type_str,
     }
 
-@traceable
+
+@observe
 def ranking_output(state: GraphState):
     """Generate the ranking response."""
     ranking_df = state["ranking_df"]
@@ -841,6 +848,11 @@ workflow.add_edge("college_data_comments", END)
 workflow.add_edge("ranking_data", "ranking_output")
 workflow.add_edge("ranking_output", END)
 app = workflow.compile()
+
+
+@observe(name="Chatbot")
+def langgraph_app_stream(input):
+    return app.stream(input)
 
 
 def draw_graph_png():
@@ -913,7 +925,7 @@ if user_input := st.chat_input(lang_dict["input_box"]):
         with placeholder.container():
             status = st.status(lang_dict["status_wait"])
         try:
-            for output in app.stream(inputs):
+            for output in langgraph_app_stream(inputs):
                 for key, response in output.items():
                     if "generation" in response:
                         status.update(label=lang_dict["status_generate"])
