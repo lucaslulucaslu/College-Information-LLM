@@ -45,10 +45,11 @@ def llm_wrapper(sys_prompt, user_prompt, response_format=None):
 
 @observe(as_type="generation")
 def llm_wrapper_streaming_trace(
-    full_response, input_tokens, output_tokens, total_tokens
+    sys_prompt, user_prompt, full_response, input_tokens, output_tokens, total_tokens
 ):
     langfuse_context.update_current_observation(
         model=model,
+        input = {"system": sys_prompt, "user": user_prompt},
         output=full_response,
         usage_details={
             "input": input_tokens,
@@ -71,5 +72,5 @@ def llm_wrapper_streaming(sys_prompt, user_prompt):
     output_tokens = chunk.usage_metadata.candidates_token_count
     total_tokens = chunk.usage_metadata.total_token_count
     llm_wrapper_streaming_trace(
-        full_response, input_tokens, output_tokens, total_tokens
+        sys_prompt, user_prompt,full_response, input_tokens, output_tokens, total_tokens
     )

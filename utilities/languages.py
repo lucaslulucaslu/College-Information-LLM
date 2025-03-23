@@ -3,9 +3,9 @@
 cn_dict = {
     "prompt_retriever": "基于以上聊天内容及用户最新的问题，生成一个独立的可以用来查找与问题相关内容的查询句子，句子尽量包含所有细节",
     "prompt_document": """你是美国续航教育的问答小助手，基于之前的聊天记录，并尽量使用下面提供的美国续航教育资料库内容生成问题的答案，\
-        注意不要捏造答案，答案的内容请尽量详细且全面，内容尽量从下面提供的资料库中提取。\
-            如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务并给出可以点击的美国续航教育官网url：\
-            "https://www.forwardpathway.com"，美国续航教育资料库内容如下：\n\n{context}\n\n聊天记录如下：{chat_history}""",
+        回答要尽量从用户的问题出发来回答，答案的内容请尽量详细且全面，但注意不要捏造答案，回答的内容尽量从下面提供的资料库中提取。\
+            如果回答中有提到帮助或者服务的内容，尽可能在回答最后推荐使用美国续航教育的相关服务并给出可以点击的markdown格式美国续航教育官网url：\
+            "[https://www.forwardpathway.com](https://www.forwardpathway.com)"。\n\n美国续航教育资料库内容如下：\n\n{context}\n\n聊天记录如下：{chat_history}""",
     "prompt_comments_system": "你是一位了解美国高等院校各类数据的专家，你需要对下面这所大学的该类数据做一个简短的讨论，\
         可以是趋势、变化、异常或者其他任何与该数据相关的情况,如果是录取率，保有率，毕业率等小于1的数值，请自动转换成百分比数值，\
             数据来源url：{college_url}，请给出一个可以点击的正确链接地址，链接显示名为该大学名称。\
@@ -16,11 +16,11 @@ cn_dict = {
                 2. 如无特殊要求的，生成排名表格只输出前10名的数据。
                 3. 生成回答时的排名类型、排名年份请按照提供的排名数据类型和排名年份为准，只会有美国大学排名和学院排名，不会细分到专业排名。
                 4. 如果提供的排名数据类型位美国大学排名，则生成美国大学排名表格，\
-                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面："https://www.forwardpathway.com/ranking"。
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面："[https://www.forwardpathway.com/ranking](https://www.forwardpathway.com/ranking)"。
                 5. 如果提供的排名数据类型为学院排名，而用户提问的排名类型位专业排名，则生成学院排名表格，\
-                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面："https://www.forwardpathway.com/ranking"。
+                    在表格后要告诉用户细分项类别的排名请参考美国续航教育的美国大学排名页面："[https://www.forwardpathway.com/ranking](https://www.forwardpathway.com/ranking)"。
                 6. 如果提供的排名数据类型为学院排名，而用户提问的排名类型同样是学院排名，则生成学院排名表格。\
-                    在表格后要告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面："https://www.forwardpathway.com/ranking"。
+                    在表格后要告诉用户其他类别的排名请参考美国续航教育的美国大学排名页面："[https://www.forwardpathway.com/ranking](https://www.forwardpathway.com/ranking)"。
                 \n\n排名年份：{ranking_year}\n\n排名类型：{ranking_type}\
                     \n\n排名数据如下：{ranking_df}""",
     "prompt_ranking_human": "用户问题如下：{question}\n\n历史聊天记录如下：{chat_history}",
@@ -77,7 +77,7 @@ cn_dict = {
     "data_crime_rate": "每千人学生记过、犯罪率",
     "error_too_many_requests": "为了AI服务器更好的运行，两次提问输入间隔请不要少于3秒时间！",
     "languages": "语言选择",
-    "disclaim": "*该APP资料及数据来源为美国续航教育官网，输出内容经ChatGPT整理，APP测试阶段回答不一定准确，请确认后使用",
+    "disclaim": "*该APP资料及数据来源为美国续航教育官网，输出内容经AI整理，APP测试阶段回答不一定准确，请确认后使用",
     "status_wait": "整理资料中，请稍候……",
     "status_generate": "输出资料中……",
     "status_finish": "完成。",
@@ -166,7 +166,7 @@ en_dict = {
     "data_crime_rate": "Crime rate per 1000 students",
     "error_too_many_requests": "Please wait for 3 seconds to input another question!",
     "disclaim": "*The data and information of this APP are from the official website of Forward Pathway LLC, \
-        and the output content has been organized by ChatGPT. \
+        and the output content has been organized by AI. \
             Please note that the answers during the testing phase of the APP may not be accurate, so please verify before using.",
     "status_wait": "Putting everything togerth...",
     "status_generate": "Generating content...",

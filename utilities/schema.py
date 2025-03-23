@@ -41,6 +41,7 @@ class GraphState(TypedDict):
     """
 
     question: str
+    retrieval_query: str
     router_college_flag: str
     router_ranking_flag: str
     generation: str

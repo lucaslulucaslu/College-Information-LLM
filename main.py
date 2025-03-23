@@ -37,8 +37,8 @@ st.set_page_config(
     },
 )
 
-SEARCH_DOCS_NUM = 4
-SEARCH_COLLEGES_NUM = 2
+SEARCH_DOCS_NUM = 8
+SEARCH_COLLEGES_NUM = 3
 
 
 # choose language
@@ -134,12 +134,10 @@ def retrieve(state: GraphState):
     vector.merge_from(vector_lxsq)
     vector.merge_from(vector_emergency)
     documents_retriever = vector.as_retriever(search_kwargs={"k": SEARCH_DOCS_NUM})
-    question = state["question"]
-    documents = documents_retriever.invoke(question)
+    retrieval_query = state["retrieval_query"]
+    documents = documents_retriever.invoke(retrieval_query)
     return {
         "documents": documents,
-        "question": question,
-        "chat_history": state["chat_history"],
     }
 
 
@@ -147,10 +145,18 @@ def retrieve(state: GraphState):
 def generate(state: GraphState):
     """Generate the answer to the user's question."""
     documents = state["documents"]
+    
     system_prompt = lang_dict["prompt_document"].format(
         context=documents, chat_history=state["chat_history"]
     )
-    user_prompt = state["question"]
+    if state["college_info"]:
+        college_info={
+            "中文名": state["college_info"].cname,
+            "英文名": state["college_info"].ename,
+            "url": "https://www.forwardpathway.com/"+state["college_info"].postid,
+        }
+        system_prompt += f"\n\n问题中提到的学校信息如下：{college_info}， 可以推荐查看该学校的url，用下面的markdown格式输出可以点击的url:[{state["college_info"].cname}]({college_info["url"]})以获取更详细的学校信息。"
+    user_prompt = "用户的问题如下："+state["question"]
     response = llm_wrapper_streaming(system_prompt, user_prompt)
 
     return {"generation": response}
@@ -739,7 +745,7 @@ def generate_retrieve_question(state: GraphState):
     system_prompt = "基于用户的问题和历史聊天记录，重新生成一个可以更好查询vector store以取得相关内容文章的短语。注意：最终只输出一个你认为最合适的搜索短语。"
     user_prompt = f"用户问题如下：{state["question"]}，\n\n历史聊天记录如下：{state["chat_history"]}"
     response = llm_wrapper(system_prompt, user_prompt).text
-    return {"question": response}
+    return {"retrieval_query": response}
 
 
 @observe
