@@ -145,18 +145,18 @@ def retrieve(state: GraphState):
 def generate(state: GraphState):
     """Generate the answer to the user's question."""
     documents = state["documents"]
-    
+
     system_prompt = lang_dict["prompt_document"].format(
         context=documents, chat_history=state["chat_history"]
     )
     if state["college_info"]:
-        college_info={
+        college_info = {
             "中文名": state["college_info"].cname,
             "英文名": state["college_info"].ename,
-            "url": "https://www.forwardpathway.com/"+state["college_info"].postid,
+            "url": "https://www.forwardpathway.com/" + state["college_info"].postid,
         }
         system_prompt += f"\n\n问题中提到的学校信息如下：{college_info}， 可以推荐查看该学校的url，用下面的markdown格式输出可以点击的url:[{state["college_info"].cname}]({college_info["url"]})以获取更详细的学校信息。"
-    user_prompt = "用户的问题如下："+state["question"]
+    user_prompt = "用户的问题如下：" + state["question"]
     response = llm_wrapper_streaming(system_prompt, user_prompt)
 
     return {"generation": response}
@@ -204,7 +204,7 @@ def database_router_func(state: GraphState):
             "毕业率",
             "犯罪率",
         }
-        and len(post_id) > 0
+        and post_id.isdigit()
     ):
         return "to_college_data_plot"
     else:
