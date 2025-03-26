@@ -149,7 +149,7 @@ def generate(state: GraphState):
     system_prompt = lang_dict["prompt_document"].format(
         context=documents, chat_history=state["chat_history"]
     )
-    if state["college_info"]:
+    if "college_info" in state:
         college_info = {
             "中文名": state["college_info"].cname,
             "英文名": state["college_info"].ename,
