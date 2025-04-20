@@ -1,1 +1,21 @@
 ERROR:__main__:'college_info'
+ERROR:__main__:1 validation error for ThinkingConfig
+thinking_buget
+  Extra inputs are not permitted [type=extra_forbidden, input_value=0, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden
+ERROR:__main__:1 validation error for ThinkingConfig
+thinking_buget
+  Extra inputs are not permitted [type=extra_forbidden, input_value=0, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden
+ERROR:__main__:1 validation error for ThinkingConfig
+thinking_buget
+  Extra inputs are not permitted [type=extra_forbidden, input_value=0, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden
+ERROR:__main__:1 validation error for ThinkingConfig
+thinking_buget
+  Extra inputs are not permitted [type=extra_forbidden, input_value=0, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden
+ERROR:__main__:1 validation error for ThinkingConfig
+thinking_budget
+  Extra inputs are not permitted [type=extra_forbidden, input_value=1024, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.10/v/extra_forbidden

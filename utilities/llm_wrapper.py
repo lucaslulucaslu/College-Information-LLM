@@ -1,9 +1,9 @@
 from google import genai
 import os
 from langfuse.decorators import observe, langfuse_context
+from google.genai.types import GenerateContentConfig, ThinkingConfig
 
-
-model = "gemini-2.0-flash"
+model = "gemini-2.5-flash-preview-04-17"
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
@@ -13,10 +13,11 @@ def llm_wrapper(sys_prompt, user_prompt, response_format=None):
         response = client.models.generate_content(
             model=model,
             contents=sys_prompt + user_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": response_format,
-            },
+            config=GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=response_format,
+                thinking_config=ThinkingConfig(thinking_budget=0)
+            ),
         )
         langfuse_context.update_current_observation(
             model=model,
@@ -29,7 +30,11 @@ def llm_wrapper(sys_prompt, user_prompt, response_format=None):
         )
     else:
         response = client.models.generate_content(
-            model=model, contents=sys_prompt + user_prompt
+            model=model,
+            contents=sys_prompt + user_prompt,
+            config=GenerateContentConfig(
+                thinking_config=ThinkingConfig(thinking_budget=0)
+            ),
         )
         langfuse_context.update_current_observation(
             model=model,
@@ -49,7 +54,7 @@ def llm_wrapper_streaming_trace(
 ):
     langfuse_context.update_current_observation(
         model=model,
-        input = {"system": sys_prompt, "user": user_prompt},
+        input={"system": sys_prompt, "user": user_prompt},
         output=full_response,
         usage_details={
             "input": input_tokens,
@@ -72,5 +77,10 @@ def llm_wrapper_streaming(sys_prompt, user_prompt):
     output_tokens = chunk.usage_metadata.candidates_token_count
     total_tokens = chunk.usage_metadata.total_token_count
     llm_wrapper_streaming_trace(
-        sys_prompt, user_prompt,full_response, input_tokens, output_tokens, total_tokens
+        sys_prompt,
+        user_prompt,
+        full_response,
+        input_tokens,
+        output_tokens,
+        total_tokens,
     )
