@@ -3,7 +3,7 @@ import os
 from langfuse.decorators import observe, langfuse_context
 from google.genai.types import GenerateContentConfig, ThinkingConfig
 
-model = "gemini-2.5-flash-preview-05-20"
+model = "gemini-2.5-flash"
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
