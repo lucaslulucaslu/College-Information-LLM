@@ -3,7 +3,7 @@ import os
 from langfuse.decorators import observe, langfuse_context
 from google.genai.types import GenerateContentConfig, ThinkingConfig
 
-model = "gemini-2.5-flash"
+model = "gemini-3-flash-preview"
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
@@ -16,7 +16,7 @@ def llm_wrapper(sys_prompt, user_prompt, response_format=None):
             config=GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=response_format,
-                thinking_config=ThinkingConfig(thinking_budget=0)
+                thinking_config=ThinkingConfig(thinking_budget=0),
             ),
         )
         langfuse_context.update_current_observation(
