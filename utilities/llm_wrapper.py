@@ -3,8 +3,8 @@ import os
 from langfuse.decorators import observe, langfuse_context
 from google.genai.types import GenerateContentConfig, ThinkingConfig
 
-model = "gemini-3-flash-preview"
-model_lite = "gemini-2.5-flash-lite"
+model = "gemini-2.5-flash-lite"
+model_streaming = "gemini-2.5-flash-lite"
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
@@ -67,21 +67,34 @@ def llm_wrapper_streaming_trace(
 
 def llm_wrapper_streaming(sys_prompt, user_prompt):
     response = client.models.generate_content_stream(
-        model=model_lite,
+        model=model_streaming,
         contents=sys_prompt + user_prompt,
     )
     full_response = ""
+    last_chunk = None  # 用于记录最后一个 chunk 以提取 metadata
+
     for chunk in response:
-        full_response += chunk.text
-        yield chunk.text
-    input_tokens = chunk.usage_metadata.prompt_token_count
-    output_tokens = chunk.usage_metadata.candidates_token_count
-    total_tokens = chunk.usage_metadata.total_token_count
-    llm_wrapper_streaming_trace(
-        sys_prompt,
-        user_prompt,
-        full_response,
-        input_tokens,
-        output_tokens,
-        total_tokens,
-    )
+        last_chunk = chunk
+        # 2. 关键防御：使用 getattr 或 or "" 防止 NoneType 报错
+        text_piece = chunk.text if chunk.text is not None else ""
+
+        if text_piece:
+            full_response += text_piece
+            yield text_piece
+
+    # 3. 安全提取 Token 信息
+    if last_chunk and hasattr(last_chunk, "usage_metadata"):
+        usage = last_chunk.usage_metadata
+        input_tokens = usage.prompt_token_count or 0
+        output_tokens = usage.candidates_token_count or 0
+        total_tokens = usage.total_token_count or 0
+
+        # 触发追踪记录
+        llm_wrapper_streaming_trace(
+            sys_prompt,
+            user_prompt,
+            full_response,
+            input_tokens,
+            output_tokens,
+            total_tokens,
+        )

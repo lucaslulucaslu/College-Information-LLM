@@ -17,10 +17,9 @@ from utilities.knowledgebase import TXTKnowledgeBase
 from utilities.ranking import CollegeRanking
 from utilities.schema import (
     College_Info,
-    CollegeRouter,
+    MainRouter,
     GraphState,
     RankingType,
-    RouteQuery,
 )
 from utilities.llm_wrapper import llm_wrapper, llm_wrapper_streaming
 from langfuse.decorators import observe
@@ -62,6 +61,7 @@ def get_combined_retriever():
     # 返回预设好的 retriever
     return kb_lxbd.as_retriever(search_kwargs={"k": SEARCH_DOCS_NUM})
 
+
 get_combined_retriever()  # 预加载向量数据库
 
 # choose language
@@ -95,50 +95,45 @@ else:
 
 
 @observe
-def router_college(state: GraphState):
-    """Route the user's question to the college database or others."""
-    system_prompt = """你是一名熟悉美国大学的专家，下面将给出用户的一个问题，你需要判断用户的问题是否为某所特定大学的相关问题，Yes为相关问题，\
-        No为不与特定某所美国大学相关。比如：哈佛大学排名，普林斯顿录取率等这类只包含一个学校名称的问题则回答Yes，\
-            而美国大学申请、美国留学难不难、会计专业排名、物理学排名等不包含特定某所美国大学名称的问题则回答No。"""
-    user_prompt = f"用户问题如下：{state["question"]}"
+def unified_router(state: GraphState):
+    """一键分发用户意图到三个核心路径。"""
+
+    system_prompt = """你是一名熟悉美国大学申请的资深顾问。请根据用户的问题和历史对话，将其路由到最合适的处理路径：
+
+1. **college_info (特定学校路径)**: 
+   - 触发条件：问题核心是关于“某一所特定大学”的具体数据或信息。
+   - 例子：'哈佛大学的排名'、'普林斯顿的录取率'、'CMU的学费'、'去UIUC安全吗'。
+   - 注意：只要问题聚焦在单所学校，即使涉及排名也选此项。
+
+2. **ranking (排名列表路径)**: 
+   - 触发条件：用户想要查看某类学校的“排名榜单”或“对比列表”，不针对单一特定学校。
+   - 例子：'美国大学排名'、'商科专业排名'、'最好的工程学院有哪些'、'加州有哪些好的公立大学'。
+
+3. **vectorstore (综合知识库路径)**: 
+   - 触发条件：关于留学流程、政策、多校综合对比或泛指的申请建议。
+   - 例子：'美国大学申请流程'、'如何转学到美国'、'会计专业就业前景'、'托福要考多少分'、'哈佛和耶鲁哪个好'。
+
+请务必精准判断。"""
+
+    user_prompt = f"当前问题：{state['question']}\n\n历史对话：{state['chat_history']}"
+
+    # 调用 LLM 进行解析
     response = llm_wrapper(
-        system_prompt, user_prompt, response_format=CollegeRouter
+        system_prompt, user_prompt, response_format=MainRouter
     ).parsed
-    return {"router_college_flag": response.college}
+
+    return {"router_flag": response.route}
 
 
-def router_college_func(state: GraphState):
-    """Route the user's question to the college database or others."""
-    if state["router_college_flag"] == "Yes":
+def unified_router_func(state: GraphState):
+    """LangGraph 路由逻辑跳转控制"""
+    route = state["router_flag"]
+    if route == "college_info":
         return "to_database"
-    return "to_router_ranking"
-
-
-@observe
-def router_ranking(state: GraphState):
-    """Route the user's question to the ranking database or others."""
-    system_prompt = """
-        你是一位路径选择的专家，负责根据用户的问题及历史聊天记录，从以下两条路径中选择最合适的一条："vectorstore"、"ranking"。
-
-    1. "vectorstore"：包含美国留学的综合资料，例如美国留学申请流程、转学事项等。如果用户的问题涉及美国留学的整体信息或涉及两所及以上大学的信息，请选择此路径。
-
-    2. "ranking"：提供美国大学的排名数据，包括综合排名、学院排名、专业排名等。如果用户的问题是了解一组大学的排名列表，请选择此路径。比如美国大学排名，商科排名等等。
-
-    请根据用户的问题内容和规则做出最合适的路径选择。
-    """
-    user_prompt = f"用户问题如下：{state["question"]}\n\n历史聊天记录如下：{state["chat_history"]}"
-    response = llm_wrapper(
-        system_prompt, user_prompt, response_format=RouteQuery
-    ).parsed
-    return {"router_ranking_flag": response.router}
-
-
-def router_ranking_func(state: GraphState):
-    """Route the user's question to the ranking database or others."""
-    if state["router_ranking_flag"] == "vectorstore":
-        return "to_retrieve"
-    elif state["router_ranking_flag"] == "ranking":
+    elif route == "ranking":
         return "to_ranking"
+    else:
+        return "to_retrieve"
 
 
 @observe
@@ -808,40 +803,32 @@ def ranking_output(state: GraphState):
     return {"generation": response}
 
 
-# Build LangGraph
+# --- 构建节点 ---
 workflow = StateGraph(GraphState)
 
-workflow.add_node("router_college", router_college)
-workflow.add_node("router_ranking", router_ranking)
-workflow.add_node("retrieve", retrieve)
+# 注册所有节点
+workflow.add_node("unified_router", unified_router)
 workflow.add_node("get_college_info", get_college_info)
+workflow.add_node("ranking_data", ranking_data)
+workflow.add_node("generate_retrieve_question", generate_retrieve_question)
+workflow.add_node("retrieve", retrieve)
 workflow.add_node("generate", generate)
 workflow.add_node("college_data_plot", college_data_plot)
 workflow.add_node("college_data_comments", college_data_comments)
-workflow.add_node("generate_retrieve_question", generate_retrieve_question)
-workflow.add_node("ranking_data", ranking_data)
 workflow.add_node("ranking_output", ranking_output)
 
-workflow.add_edge(START, "router_college")
-workflow.add_conditional_edges(
-    "router_college",
-    router_college_func,
-    {
-        "to_database": "get_college_info",
-        "to_router_ranking": "router_ranking",
-    },
-)
-workflow.add_conditional_edges(
-    "router_ranking",
-    router_ranking_func,
-    {
-        "to_retrieve": "generate_retrieve_question",
-        "to_ranking": "ranking_data",
-    },
-)
+# --- 构建逻辑边界 ---
+workflow.add_edge(START, "unified_router")
 
-workflow.add_edge("retrieve", "generate")
-workflow.add_edge("generate", END)
+workflow.add_conditional_edges(
+    "unified_router",
+    unified_router_func,
+    {
+        "to_database": "get_college_info",  # 去查特定学校数据库
+        "to_ranking": "ranking_data",  # 去查排名榜单
+        "to_retrieve": "generate_retrieve_question",  # 去查 RAG 知识库
+    },
+)
 
 workflow.add_conditional_edges(
     "get_college_info",
@@ -853,10 +840,15 @@ workflow.add_conditional_edges(
 )
 
 workflow.add_edge("generate_retrieve_question", "retrieve")
+workflow.add_edge("retrieve", "generate")
+workflow.add_edge("generate", END)
+
 workflow.add_edge("college_data_plot", "college_data_comments")
 workflow.add_edge("college_data_comments", END)
+
 workflow.add_edge("ranking_data", "ranking_output")
 workflow.add_edge("ranking_output", END)
+
 app = workflow.compile()
 
 

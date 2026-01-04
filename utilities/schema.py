@@ -1,9 +1,18 @@
 """This module defines the data models schema."""
 
-from typing import List, Literal, Optional, TypedDict
+from typing import Literal, TypedDict
 
 import pandas as pd
 from pydantic import BaseModel, Field
+
+
+class MainRouter(BaseModel):
+    """根据用户意图选择最佳处理路径。"""
+
+    route: Literal["college_info", "ranking", "vectorstore"] = Field(
+        ...,
+        description="选择处理路径：'college_info' 针对特定某一所学校的问题；'ranking' 针对排名列表类问题；'vectorstore' 针对通用留学知识或多校对比。",
+    )
 
 
 class College_Info(BaseModel):
@@ -22,9 +31,9 @@ class College_Info(BaseModel):
 class RankingType(BaseModel):
     """Represents the ranking type."""
 
-    school: Optional[str] = Field(description="学院名称、专业大类名称")
+    school: str | None = Field(description="学院名称、专业大类名称")
     level: Literal["本科", "研究生"] = Field(description="本科、研究生")
-    year: Optional[int] = Field(description="排名年份")
+    year: int | None = Field(description="排名年份")
 
 
 class GraphState(TypedDict):
@@ -42,10 +51,9 @@ class GraphState(TypedDict):
 
     question: str
     retrieval_query: str
-    router_college_flag: str
-    router_ranking_flag: str
+    router_flag: str
     generation: str
-    documents: List[str]
+    documents: list[str]
     college_info: College_Info
     ranking_year: int
     ranking_type: str
@@ -54,19 +62,3 @@ class GraphState(TypedDict):
     plot_type: str
     data: pd.DataFrame
     chat_history: list
-
-
-class CollegeRouter(BaseModel):
-    """基于用户的查询词条选择是否为单所大学相关问题."""
-
-    college: Literal["Yes", "No"] = Field(
-        description="回答是否为某所特定大学相关问题，Yes为某所大学相关问题，No为不相关"
-    )
-
-
-class RouteQuery(BaseModel):
-    """基于用户的查询词条选择最相关的资料来源，vectorstore或者ranking."""
-
-    router: Literal["vectorstore", "ranking"] = Field(
-        description="基于用户的问题选择vectrostore或者ranking。"
-    )
