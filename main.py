@@ -41,6 +41,29 @@ SEARCH_DOCS_NUM = 8
 SEARCH_COLLEGES_NUM = 3
 
 
+@st.cache_resource
+def get_combined_retriever():
+    """只在启动时加载并合并一次向量库"""
+    logger.info("Initializing Vector Databases...")
+    kb_lxbd = TXTKnowledgeBase(
+        txt_source_folder_path="lxbd"
+    ).return_retriever_from_persistant_vector_db()
+    kb_lxsq = TXTKnowledgeBase(
+        txt_source_folder_path="lxsq"
+    ).return_retriever_from_persistant_vector_db()
+    kb_emergency = TXTKnowledgeBase(
+        txt_source_folder_path="emergency"
+    ).return_retriever_from_persistant_vector_db()
+
+    # 预先合并
+    kb_lxbd.merge_from(kb_lxsq)
+    kb_lxbd.merge_from(kb_emergency)
+
+    # 返回预设好的 retriever
+    return kb_lxbd.as_retriever(search_kwargs={"k": SEARCH_DOCS_NUM})
+
+get_combined_retriever()  # 预加载向量数据库
+
 # choose language
 lang_index = "lang" in st.query_params and st.query_params["lang"].upper() == "EN"
 
@@ -120,25 +143,10 @@ def router_ranking_func(state: GraphState):
 
 @observe
 def retrieve(state: GraphState):
-    """Retrieve the documents from the knowledge base."""
-    # print("---RETRIEVE---")
-    vector = TXTKnowledgeBase(
-        txt_source_folder_path="lxbd"
-    ).return_retriever_from_persistant_vector_db()
-    vector_lxsq = TXTKnowledgeBase(
-        txt_source_folder_path="lxsq"
-    ).return_retriever_from_persistant_vector_db()
-    vector_emergency = TXTKnowledgeBase(
-        txt_source_folder_path="emergency"
-    ).return_retriever_from_persistant_vector_db()
-    vector.merge_from(vector_lxsq)
-    vector.merge_from(vector_emergency)
-    documents_retriever = vector.as_retriever(search_kwargs={"k": SEARCH_DOCS_NUM})
+    retriever = get_combined_retriever()  # 这里获取的是缓存好的对象，速度极快
     retrieval_query = state["retrieval_query"]
-    documents = documents_retriever.invoke(retrieval_query)
-    return {
-        "documents": documents,
-    }
+    documents = retriever.invoke(retrieval_query)
+    return {"documents": documents}
 
 
 @observe
@@ -217,7 +225,7 @@ def college_data_plot(state: GraphState):
     question = state["question"]
     college_info = state["college_info"]
     dataURLs = {
-        "rank_adm": "https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20240923.php?name=",
+        "rank_adm": "https://www.forwardpathway.com/d3v7/dataphp/school_database/ranking_admin_20250923.php?name=",
         "world_rank": "https://www.forwardpathway.com/d3v7/dataphp/chatbot/world_ranks4_20240605.php?name=",
         "score": "https://www.forwardpathway.com/d3v7/dataphp/school_database/score10_20231213.php?name=",
         "students": "https://www.forwardpathway.com/d3v7/dataphp/school_database/student_comp_20240118.php?name=",

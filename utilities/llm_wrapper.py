@@ -4,6 +4,7 @@ from langfuse.decorators import observe, langfuse_context
 from google.genai.types import GenerateContentConfig, ThinkingConfig
 
 model = "gemini-3-flash-preview"
+model_lite = "gemini-2.5-flash-lite"
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
@@ -66,7 +67,7 @@ def llm_wrapper_streaming_trace(
 
 def llm_wrapper_streaming(sys_prompt, user_prompt):
     response = client.models.generate_content_stream(
-        model=model,
+        model=model_lite,
         contents=sys_prompt + user_prompt,
     )
     full_response = ""
