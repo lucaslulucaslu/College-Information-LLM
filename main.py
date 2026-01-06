@@ -885,7 +885,7 @@ with st.sidebar:
     lang_dict["service_emergency"]
     st.divider()
     st.subheader(lang_dict["service_barcode"])
-    st.image("./logos/WeCom_barcode.png", width=200)
+    st.image("https://www.forwardpathway.com/wp-content/uploads/2021/12/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1-%E7%BB%AD%E8%88%AA%E5%AE%A2%E6%9C%8D.png", width=200)
     st.divider()
     st.markdown(lang_dict["disclaim"])
 st.title(lang_dict["title"])
